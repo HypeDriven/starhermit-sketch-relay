@@ -1,0 +1,74 @@
+[
+  {
+    "name": "ui-click",
+    "seconds": 1,
+    "prompt": "Short dry finger tap on a small wooden button, single crisp knock, no reverb",
+    "event": "ui-click"
+  },
+  {
+    "name": "game-start",
+    "seconds": 2,
+    "prompt": "Small brass hand bell struck once, bright cheerful ring with a short natural decay",
+    "event": "game-start"
+  },
+  {
+    "name": "guess-submit",
+    "seconds": 1,
+    "prompt": "A folded paper slip dropped into an empty metal tin, soft plip with a light metallic tick",
+    "event": "guess-submit"
+  },
+  {
+    "name": "guess-correct",
+    "seconds": 2,
+    "prompt": "Small hand bell rung twice in quick succession, happy bright ding-ding",
+    "event": "guess-correct"
+  },
+  {
+    "name": "guess-wrong",
+    "seconds": 1,
+    "prompt": "Single soft knock on a thick wooden door, muted dull thud",
+    "event": "guess-wrong"
+  },
+  {
+    "name": "word-advance",
+    "seconds": 1,
+    "prompt": "A stiff index card flipped over on a wooden table, quick paper snap",
+    "event": "word-advance"
+  },
+  {
+    "name": "turn-advance",
+    "seconds": 2,
+    "prompt": "Wooden slide whistle blown in one short upward swoop, playful and light",
+    "event": "turn-advance"
+  },
+  {
+    "name": "game-over-win",
+    "seconds": 3,
+    "prompt": "Small group of people clapping hands with one short party horn honk, cozy room",
+    "event": "game-over-win"
+  },
+  {
+    "name": "game-over-time",
+    "seconds": 2,
+    "prompt": "Wind-up kitchen timer reaching zero, rapid mechanical bell ringing for a moment",
+    "event": "game-over-time"
+  },
+  {
+    "name": "pause-open",
+    "seconds": 1,
+    "prompt": "A hardcover book gently closed, soft padded thump",
+    "event": "pause-open"
+  },
+  {
+    "name": "pause-resume",
+    "seconds": 1,
+    "prompt": "A hardcover book opened with a quiet page rustle",
+    "event": "pause-resume"
+  },
+  {
+    "name": "quit-to-title",
+    "seconds": 1,
+    "prompt": "Two soft footsteps walking away on a wooden floor, brief and calm",
+    "event": "quit-to-title"
+  }
+]

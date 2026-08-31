@@ -1,0 +1,42 @@
+/* Sketch Relay — global styles */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: #12151c; color: #f3f4f6;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+#app { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+#scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* ---------- shared bits ---------- */
+.btn {
+  appearance: none; border: none; cursor: pointer; user-select: none;
+  background: #3b4252; color: #ffffff;
+  font-size: 18px; line-height: 1.2; font-weight: 600;
+  padding: 14px 28px; border-radius: 10px;
+}
+.btn:hover { background: #4a5264; }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: #c9372b; }
+.btn-primary:hover { background: #d84a3d; }
+.btn-small { font-size: 15px; padding: 9px 16px; border-radius: 8px; }
+
+.hud-bar { display: flex; align-items: center; justify-content: space-between; width: min(1040px, 92vw); margin: 0 auto; gap: 16px; }
+.hud-item { font-size: 17px; color: #e8eaee; white-space: nowrap; }
+
+.panel { width: min(560px, 88vw); background: rgba(20,24,33,.92); border-radius: 12px; padding: 18px 22px; margin: 18px auto; text-align: center; }
+.panel-title { font-size: 15px; letter-spacing: .12em; color: #aab2c0; margin: 0 0 8px; text-transform: uppercase; }
+.panel-text { font-size: 34px; font-weight: 700; color: #ffffff; margin: 0; line-height: 1.25; word-break: break-word; }
+
+.guess-row { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 6px; }
+#guess-input {
+  width: min(380px, 70vw); font-size: 19px; color: #ffffff;
+  background: #2a2f3a; border: none; border-radius: 8px; padding: 12px 14px; outline: none;
+}
+
+.overlay-title { font-size: 30px; margin: 0; color: #ffffff; text-align: center; }
+.loading-text { font-size: 20px; color: #d7dbe2; }
+
+#results-body .panel { width: min(680px, 90vw); background: rgba(15,18,26,.94); padding: 22px 26px; margin-top: 10px; text-align: left; font-size: 17px; line-height: 1.7; color: #eef0f3; }

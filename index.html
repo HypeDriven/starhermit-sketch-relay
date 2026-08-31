@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Sketch Relay</title>
+<link rel="stylesheet" href="./style.css" />
+<script type="module" src="./src/main.js"></script>
+<script type="module" src="./src/sfx.js"></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene-canvas"></canvas>
+
+  <!-- Title screen -->
+  <section id="screen-title" class="screen" hidden>
+    <h1 class="title-name">Sketch Relay</h1>
+    <p class="tagline">A party game of drawing and guessing.</p>
+    <div class="menu-buttons">
+      <button id="btn-play" class="btn btn-primary">Play</button>
+    </div>
+  </section>
+
+  <!-- Game HUD -->
+  <section id="screen-game" class="screen" hidden>
+    <header id="hud-top" class="hud-bar">
+      <span id="hud-round" class="hud-item"></span>
+      <span id="hud-timer" class="hud-item hud-timer"></span>
+      <button id="btn-pause" class="btn btn-small">Pause</button>
+    </header>
+
+    <div id="prompt-panel" class="panel" hidden>
+      <h2 class="panel-title">Prompt</h2>
+      <p id="prompt-word" class="panel-text"></p>
+    </div>
+
+    <div id="guess-panel" class="panel" hidden>
+      <label class="panel-label" for="guess-input">Your guess</label>
+      <input id="guess-input" type="text" autocomplete="off" placeholder="Type a word and press Enter" />
+      <button id="btn-guess-submit" class="btn btn-primary">Submit</button>
+    </div>
+
+    <footer id="hud-bottom" class="hud-bar"></footer>
+  </section>
+
+  <!-- Pause overlay -->
+  <section id="screen-pause" class="overlay" hidden>
+    <h2 class="overlay-title">Paused</h2>
+    <button id="btn-resume" class="btn btn-primary">Resume</button>
+    <button id="btn-quit-to-title" class="btn">Quit to title</button>
+  </section>
+
+  <!-- Results screen -->
+  <section id="screen-results" class="overlay" hidden>
+    <h2 id="results-headline" class="overlay-title"></h2>
+    <div id="results-body" class="panel"></div>
+    <button id="btn-back-to-title" class="btn btn-primary">Back to title</button>
+  </section>
+
+  <!-- Loading -->
+  <section id="screen-loading" class="overlay">
+    <p class="loading-text">Loading…</p>
+  </section>
+</div>
+<script type="module" src="./src/boot.js"></script>
+</body>
+</html>
