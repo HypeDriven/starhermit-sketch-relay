@@ -29,8 +29,15 @@ const elResultsHeadline = document.getElementById('results-headline');
 const elResultsBody = document.getElementById('results-body');
 const elBtnBackToTitle = document.getElementById('btn-back-to-title');
 const elBtnPlay = document.getElementById('btn-play');
+const elScreenLoading = document.getElementById('screen-loading');
 
-function showScreen(name) { screenName = name; }
+function showScreen(name) {
+  screenName = name;
+  elScreenTitle.hidden = name !== 'title';
+  elScreenGame.hidden = name !== 'game';
+  elScreenResults.hidden = name !== 'results';
+  if (name !== 'game') elScreenPause.hidden = true;
+}
 
 function setHud() {
   const r = rules;
@@ -78,16 +85,51 @@ if (elBtnResume) elBtnResume.addEventListener('click', () => Sfx.play('pause-res
 if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => Sfx.play('quit-to-title'));
 if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => Sfx.play('ui-click'));
 
+// screen flow
+function startGame() {
+  rules.reset();
+  paused = false;
+  T.setTickEnabled(true);
+  showScreen('game');
+  setHud(); updatePromptPanel(); updateGuessPanel();
+}
+function showResults() {
+  const solved = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
+  elResultsHeadline.textContent = rules.winReason === 'all-words-completed' ? 'All words completed!' : "Time's up!";
+  elResultsBody.textContent = 'Words solved: ' + solved + ' of ' + rules.solvedWords.length + ' · Guesses: ' + rules.guessCount;
+  showScreen('results');
+}
+if (elBtnPlay) elBtnPlay.addEventListener('click', startGame);
+if (elBtnPause) elBtnPause.addEventListener('click', () => { paused = true; T.setTickEnabled(false); elScreenPause.hidden = false; });
+if (elBtnResume) elBtnResume.addEventListener('click', () => { paused = false; T.setTickEnabled(true); elScreenPause.hidden = true; });
+if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => { paused = false; showScreen('title'); });
+if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => showScreen('title'));
+if (elBtnGuessSubmit) elBtnGuessSubmit.addEventListener('click', onGuessSubmit);
+if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGuessSubmit(); });
+
 // game-over jingle, whichever path (guess or timer) ended the game
 let wasOver = false;
 function watchGameOver() {
   if (!rules) return;
   if (rules.over && !wasOver) {
     Sfx.play(rules.winReason === 'time-expired' ? 'game-over-time' : 'game-over-win');
+    if (screenName === 'game') showResults();
   }
   wasOver = rules.over;
 }
 if (typeof window !== 'undefined') window.setInterval(watchGameOver, 250);
+
+// HUD refresh while playing
+if (typeof window !== 'undefined') window.setInterval(() => {
+  if (screenName !== 'game' || paused || !rules) return;
+  setHud(); updatePromptPanel(); updateGuessPanel();
+}, 250);
+
+function resizeCanvas() {
+  if (!elCanvas) return;
+  T.resize(elCanvas.clientWidth, elCanvas.clientHeight, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+}
+if (typeof window !== 'undefined') window.addEventListener('resize', resizeCanvas);
 
 export function _debug() {
   return { screen: screenName, paused, rules };
@@ -95,7 +137,11 @@ export function _debug() {
 
 // module init (runs once at import)
 rules = new Rules();
+T.setRules(rules);
+T.setTickEnabled(false);
 T.init(elCanvas);
 showScreen('title');
 setHud(); updatePromptPanel(); updateGuessPanel();
+resizeCanvas();
+if (elScreenLoading) elScreenLoading.hidden = true;
 T.start();

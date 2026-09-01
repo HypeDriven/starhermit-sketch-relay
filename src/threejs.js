@@ -1,6 +1,6 @@
 // Sketch Relay — Three.js presentation layer (WebGL).
 import * as THREE from 'three';
-import { Rules } from './rules.js';
+import { ROSTER_SIZE } from './rules.js';
 
 export const C = {
   floor: '#2b3040', wall: '#8f97a6', panel: '#eef1f5', card: '#edf0f4',
@@ -19,6 +19,8 @@ let floorMesh, backWallMesh, leftWallMesh, rightWallMesh, frontWallMesh;
 let panelMesh, timerBarMesh, wordCardMesh;
 let playerMeshes = [];
 let particlePoints = null;
+let rulesRef = null;
+let tickEnabled = true;
 
 function makePlayerMaterial(colorHex) {
   return new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.85, metalness: 0.0 });
@@ -94,7 +96,7 @@ export function init(canvas) {
 
   // players: 12 capsules in a row facing the panel; human (seat 0) at left end
   const capGeo = new THREE.CapsuleGeometry(0.38, 1.0, 8, 16);
-  for (let i = 0; i < Rules.ROSTER_SIZE; i++) {
+  for (let i = 0; i < ROSTER_SIZE; i++) {
     const m = new THREE.Mesh(capGeo, makePlayerMaterial(SHIRTS[i % SHIRTS.length]));
     m.position.set(-5.25 + i * 0.94, 1.0, 3.6);
     scene.add(m);
@@ -123,10 +125,13 @@ export function setQuality(tier) { if (tier) qualityTier = tier; }
 export function start() { if (!running && rafId === 0) { running = true; lastTs = performance.now(); rafId = requestAnimationFrame(frame); } }
 export function stop() { running = false; if (rafId !== 0) { cancelAnimationFrame(rafId); rafId = 0; } }
 
+export function setRules(rules) { rulesRef = rules || null; }
+export function setTickEnabled(v) { tickEnabled = !!v; }
+
 function frame(ts) {
   rafId = requestAnimationFrame(frame);
   const dtMs = Math.min(100, ts - lastTs); lastTs = ts;
-  Rules.tick(dtMs);
+  if (tickEnabled && rulesRef && typeof rulesRef.tick === 'function') rulesRef.tick(dtMs);
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
