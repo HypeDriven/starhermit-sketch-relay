@@ -26,7 +26,7 @@
   <!-- Game HUD -->
   <section id="screen-game" class="screen" hidden>
     <header id="hud-top" class="hud-bar">
-      <span id="hud-round" class="hud-item"></span>
+      <span id="hud-round" class="hud-item" role="status" aria-live="polite"></span>
       <span id="hud-timer" class="hud-item hud-timer"></span>
       <button id="btn-pause" class="btn btn-small">Pause</button>
     </header>
@@ -53,7 +53,7 @@
   </section>
 
   <!-- Results screen -->
-  <section id="screen-results" class="overlay" hidden>
+  <section id="screen-results" class="overlay" hidden aria-live="polite">
     <h2 id="results-headline" class="overlay-title"></h2>
     <div id="results-body" class="panel"></div>
     <button id="btn-back-to-title" class="btn btn-primary">Back to title</button>

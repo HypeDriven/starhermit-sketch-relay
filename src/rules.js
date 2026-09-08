@@ -132,8 +132,8 @@ export class Rules {
   static deserialize(o) {
     const r = new Rules();
     if (!o) return r;
-    r.seat = o.seat | 0;
-    r.wordIndex = (o.wordIndex || 0) | 0;
+    r.seat = Math.min(ROSTER_SIZE - 1, Math.max(0, o.seat | 0));
+    r.wordIndex = Math.min(WORDS_PER_TURN - 1, Math.max(0, (o.wordIndex || 0) | 0));
     r.elapsedMs = Math.max(0, Number(o.elapsedMs) || 0);
     r.guessCount = (o.guessCount || 0) | 0;
     const solvedStr = typeof o.solvedWords === 'string' ? o.solvedWords : '';
@@ -142,14 +142,13 @@ export class Rules {
     }
     const cbs = Array.isArray(o.correctBySeat) ? o.correctBySeat : [];
     for (let i = 0; i < ROSTER_SIZE; i++) r.correctBySeat[i] = Number(cbs[i]) || 0;
-    if (!r.over && (r.guessCount > 0 || r.elapsedMs > 0)) {
-      // a segment that ran its full time without being solved rolls into the next one with zero elapsed,
-      // so over is true exactly at the final seat's last word once any activity has occurred
-      if (r.seat === ROSTER_SIZE - 1 && r.wordIndex === WORDS_PER_TURN - 1) { r.over = true; }
+    r.over = !!o.over;
+    r.winReason = o.winReason ? String(o.winReason) : null;
+    if (r.over && !r.winReason) {
+      let allSolved = true;
+      for (let i = 0; i < ROSTER_SIZE * WORDS_PER_TURN; i++) if (!r.solvedWords[i]) { allSolved = false; break; }
+      r.winReason = allSolved ? 'all-words-completed' : 'time-expired';
     }
-    let allSolved = true;
-    for (let i = 0; i < ROSTER_SIZE * WORDS_PER_TURN; i++) if (!r.solvedWords[i]) { allSolved = false; break; }
-    if (allSolved) r.winReason = 'all-words-completed';
     return r;
   }
 

@@ -2,13 +2,19 @@
   "name": "sketch-relay",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "test": "node tests/rules.test.mjs && node tests/threejs.test.mjs && node tests/server.test.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "SEE LICENSE IN LICENSE.md",
   "dependencies": {
     "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }

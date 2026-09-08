@@ -67,4 +67,29 @@ let r2 = Rules.fromJSON(JSON.stringify(r.serialize()));
 ok(r2.stateHash() === h, 'hash identical after json round trip');
 ok(r2.guessCount === r.guessCount && r2.seat === r.seat, 'counters/seat preserved through json');
 
+// terminal state survives a round trip: over flag and win reason are preserved
+let r3 = new Rules();
+for (let p = 0; p < ROSTER_SIZE; p++) {
+  for (let w = 0; w < WORDS_PER_TURN; w++) r3.tick(ROUND_SECONDS * 1000);
+}
+ok(r3.over && r3.winReason === 'time-expired', 'full timeout ends the game as time-expired');
+const r3j = Rules.fromJSON(JSON.stringify(r3.serialize()));
+ok(r3j.over === true, 'over flag preserved through json');
+ok(r3j.winReason === 'time-expired', 'win reason preserved through json');
+
+// a mid-game state at the final seat's last word must NOT come back as over
+let r4 = new Rules();
+r4.seat = ROSTER_SIZE - 1;
+r4.wordIndex = WORDS_PER_TURN - 1;
+r4.elapsedMs = 5000;
+r4.guessCount = 3;
+const r4j = Rules.fromJSON(JSON.stringify(r4.serialize()));
+ok(r4j.over === false && r4j.winReason === null, 'mid-game final segment stays active after json round trip');
+ok(r4j.seat === r4.seat && r4j.wordIndex === r4.wordIndex, 'final segment position preserved');
+
+// out-of-range persisted positions are clamped into legal bounds
+const r5 = Rules.deserialize({ seat: 99, wordIndex: -4, over: 1, winReason: '' });
+ok(r5.seat === ROSTER_SIZE - 1 && r5.wordIndex === 0, 'seat/wordIndex clamped to legal range');
+ok(r5.over === true && r5.winReason === 'time-expired', 'over state without reason infers time-expired');
+
 console.log(`rules: ${passed} assertions passed`);

@@ -1,6 +1,6 @@
 // Sketch Relay — Three.js presentation layer (WebGL).
 import * as THREE from 'three';
-import { ROSTER_SIZE } from './rules.js';
+import { ROSTER_SIZE, ROUND_SECONDS } from './rules.js';
 
 export const C = {
   floor: '#2b3040', wall: '#8f97a6', panel: '#eef1f5', card: '#edf0f4',
@@ -125,13 +125,32 @@ export function setQuality(tier) { if (tier) qualityTier = tier; }
 export function start() { if (!running && rafId === 0) { running = true; lastTs = performance.now(); rafId = requestAnimationFrame(frame); } }
 export function stop() { running = false; if (rafId !== 0) { cancelAnimationFrame(rafId); rafId = 0; } }
 
-export function setRules(rules) { rulesRef = rules || null; }
+export function setRules(rules) { rulesRef = rules || null; lastArtistSeat = -1; }
 export function setTickEnabled(v) { tickEnabled = !!v; }
+
+let lastArtistSeat = -1;
+
+function syncSceneToRules() {
+  if (!rulesRef) return;
+  if (timerBarMesh) {
+    const frac = Math.max(0.001, Math.min(1, rulesRef.secondsLeft / ROUND_SECONDS));
+    timerBarMesh.scale.x = frac;
+  }
+  const seat = rulesRef.over ? -1 : rulesRef.seat;
+  if (seat !== lastArtistSeat && playerMeshes.length === ROSTER_SIZE) {
+    for (let i = 0; i < ROSTER_SIZE; i++) {
+      playerMeshes[i].material.emissive.set(i === seat ? '#f7c948' : '#000000');
+      playerMeshes[i].material.emissiveIntensity = i === seat ? 0.55 : 0;
+    }
+    lastArtistSeat = seat;
+  }
+}
 
 function frame(ts) {
   rafId = requestAnimationFrame(frame);
   const dtMs = Math.min(100, ts - lastTs); lastTs = ts;
   if (tickEnabled && rulesRef && typeof rulesRef.tick === 'function') rulesRef.tick(dtMs);
+  syncSceneToRules();
   if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
@@ -142,30 +161,4 @@ export function resize(w, h, dpr) {
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(dpr > 0 ? Math.min(2, dpr) : 1);
   renderer.setSize(Math.max(1, Math.floor(w)), Math.max(1, Math.floor(h)));
-}
-
-export function drawStroke(x0, y0, x1, y1, colorHex, widthPx) {
-  if (!renderer || !panelMesh) return;
-  const ctx = renderer.getContext();
-  if (!ctx) return;
-  ctx.save();
-  try { ctx.setTransform(1, 0, 0, 1, 0, 0); } catch {}
-  ctx.lineWidth = widthPx > 0 ? widthPx : 4;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = colorHex || '#222831';
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-  try { ctx.setTransform(renderer.getPixelRatio(), 0, 0, renderer.getPixelRatio(), 0, 0); } catch {}
-  ctx.restore();
-}
-
-export function clearCanvas3d() {
-  if (!renderer || !panelMesh) return;
-  const ctx = renderer.getContext();
-  if (!ctx) return;
-  try { ctx.setTransform(1, 0, 0, 1, 0, 0); } catch {}
-  ctx.clearRect(0, 0, renderer.domElement.width, renderer.domElement.height);
-  try { ctx.setTransform(renderer.getPixelRatio(), 0, 0, renderer.getPixelRatio(), 0, 0); } catch {}
 }

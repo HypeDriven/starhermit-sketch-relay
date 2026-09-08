@@ -6,8 +6,6 @@ import * as Sfx from './sfx.js';
 let rules;                  // Rules instance, created at module init below
 let screenName = 'title';   // 'title' | 'game'
 let paused = false;
-let lastWord = '';          // word of the current drawing segment (for stroke flush)
-const drawBuf = [];         // pending strokes [x0,y0,x1,y1] to flush on word change
 
 // DOM elements
 const elCanvas = document.getElementById('scene-canvas');
@@ -33,10 +31,14 @@ const elScreenLoading = document.getElementById('screen-loading');
 
 function showScreen(name) {
   screenName = name;
+  // Guarantee the loading overlay always clears once any screen is active,
+  // even if an earlier startup step threw.
+  if (elScreenLoading) elScreenLoading.hidden = true;
   elScreenTitle.hidden = name !== 'title';
   elScreenGame.hidden = name !== 'game';
   elScreenResults.hidden = name !== 'results';
   if (name !== 'game') elScreenPause.hidden = true;
+  T.setTickEnabled(name === 'game' && !paused);
 }
 
 function setHud() {
@@ -59,6 +61,7 @@ function updateGuessPanel() {
 }
 
 function onGuessSubmit() {
+  if (screenName !== 'game' || paused || !rules || rules.over) return;
   const v = elGuessInput.value;
   elGuessInput.value = '';
   if (String(v).trim() !== '') Sfx.play('guess-submit');
@@ -88,6 +91,7 @@ if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => Sfx.play(
 // screen flow
 function startGame() {
   rules.reset();
+  wasOver = false;
   paused = false;
   T.setTickEnabled(true);
   showScreen('game');
@@ -145,3 +149,10 @@ setHud(); updatePromptPanel(); updateGuessPanel();
 resizeCanvas();
 if (elScreenLoading) elScreenLoading.hidden = true;
 T.start();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (screenName === 'game' && !rules.over) { paused = true; T.setTickEnabled(false); elScreenPause.hidden = false; }
+    T.stop();
+  } else T.start();
+});
