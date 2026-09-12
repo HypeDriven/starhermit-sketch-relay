@@ -32,6 +32,8 @@ const elScreenLoading = document.getElementById('screen-loading');
 const elBtnResumeRound = document.getElementById('btn-resume-round');
 const elPlatformStatus = document.getElementById('platform-status');
 const elHudStatus = document.getElementById('hud-status');
+const elGuessFeedback = document.getElementById('guess-feedback');
+const elApp = document.getElementById('app');
 
 // --- persistence: round state + local records --------------------------------
 // One versioned doc holds the in-progress/last round (rules.serialize()) and
@@ -143,6 +145,11 @@ function onGuessSubmit() {
   rules.submitGuess(v);
   const solvedAfter = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
   persist();
+  if (elGuessFeedback) {
+    if (String(v).trim() === '') elGuessFeedback.textContent = 'Type the prompt shown, then press Enter.';
+    else if (solvedAfter > solvedBefore) elGuessFeedback.textContent = 'Correct! Next prompt.';
+    else elGuessFeedback.textContent = 'Not quite — "' + String(v).trim() + '" is not the prompt. Try again.';
+  }
   if (solvedAfter > solvedBefore) {
     Sfx.play('guess-correct');
     if (!rules.over) {
@@ -170,6 +177,7 @@ function startGame() {
   paused = false;
   T.setTickEnabled(true);
   showScreen('game');
+  if (elGuessFeedback) elGuessFeedback.textContent = 'Type the prompt shown and press Enter.';
   setHud(); updatePromptPanel(); updateGuessPanel();
   persist();
 }
@@ -226,7 +234,12 @@ function resizeCanvas() {
   if (!elCanvas) return;
   T.resize(elCanvas.clientWidth, elCanvas.clientHeight, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 }
-if (typeof window !== 'undefined') window.addEventListener('resize', resizeCanvas);
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', resizeCanvas);
+  // the iframe can change size (orientation flip) without a window resize
+  // event reaching us in time: track the app container itself
+  if (typeof ResizeObserver === 'function' && elApp) new ResizeObserver(resizeCanvas).observe(elApp);
+}
 
 export function _debug() {
   return { screen: screenName, paused, rules };

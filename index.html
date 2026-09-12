@@ -19,6 +19,10 @@
   <section id="screen-title" class="screen" hidden>
     <h1 class="title-name">Sketch Relay</h1>
     <p class="tagline">A party game of drawing and guessing.</p>
+    <div class="panel how-to">
+      <h2 class="panel-title">Solo relay practice</h2>
+      <p class="how-text">This build is a prompt relay: twelve studio artists take turns and each shows you three prompts. Type the prompt shown into <strong>Your guess</strong> and press Enter (or Submit) before the 60-second timer runs out. Wrong or misspelled guesses are counted and you can try again.</p>
+    </div>
     <div class="menu-buttons">
       <button id="btn-play" class="btn btn-primary">Play</button>
       <button id="btn-resume-round" class="btn" hidden>Resume round</button>
@@ -40,9 +44,10 @@
     </div>
 
     <div id="guess-panel" class="panel" hidden>
-      <label class="panel-label" for="guess-input">Your guess</label>
+      <label class="panel-label" for="guess-input">Your guess — type the prompt shown</label>
       <input id="guess-input" type="text" autocomplete="off" placeholder="Type a word and press Enter" />
       <button id="btn-guess-submit" class="btn btn-primary">Submit</button>
+      <p id="guess-feedback" class="guess-feedback" role="status" aria-live="polite"></p>
     </div>
 
     <footer id="hud-bottom" class="hud-bar">
