@@ -31,6 +31,8 @@ html, body {
 
 .hud-bar { display: flex; align-items: center; justify-content: space-between; width: min(1040px, 92vw); margin: 0 auto; gap: 16px; }
 .hud-item { font-size: 17px; color: #e8eaee; white-space: nowrap; }
+.hud-status { color: #aab2c0; font-size: 14px; }
+.platform-status { font-size: 14px; color: #aab2c0; margin: 0; }
 
 .panel { width: min(560px, 88vw); background: rgba(20,24,33,.92); border-radius: 12px; padding: 18px 22px; margin: 18px auto; text-align: center; }
 .panel-title { font-size: 15px; letter-spacing: .12em; color: #aab2c0; margin: 0 0 8px; text-transform: uppercase; }

@@ -21,7 +21,9 @@
     <p class="tagline">A party game of drawing and guessing.</p>
     <div class="menu-buttons">
       <button id="btn-play" class="btn btn-primary">Play</button>
+      <button id="btn-resume-round" class="btn" hidden>Resume round</button>
     </div>
+    <p id="platform-status" class="platform-status"></p>
   </section>
 
   <!-- Game HUD -->
@@ -43,7 +45,9 @@
       <button id="btn-guess-submit" class="btn btn-primary">Submit</button>
     </div>
 
-    <footer id="hud-bottom" class="hud-bar"></footer>
+    <footer id="hud-bottom" class="hud-bar">
+      <span id="hud-status" class="hud-item hud-status"></span>
+    </footer>
   </section>
 
   <!-- Pause overlay -->

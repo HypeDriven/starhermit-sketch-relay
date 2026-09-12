@@ -2,6 +2,7 @@
 import { Rules } from './rules.js';
 import * as T from './threejs.js';
 import * as Sfx from './sfx.js';
+import * as Platform from './platform.js';
 
 let rules;                  // Rules instance, created at module init below
 let screenName = 'title';   // 'title' | 'game'
@@ -28,6 +29,78 @@ const elResultsBody = document.getElementById('results-body');
 const elBtnBackToTitle = document.getElementById('btn-back-to-title');
 const elBtnPlay = document.getElementById('btn-play');
 const elScreenLoading = document.getElementById('screen-loading');
+const elBtnResumeRound = document.getElementById('btn-resume-round');
+const elPlatformStatus = document.getElementById('platform-status');
+const elHudStatus = document.getElementById('hud-status');
+
+// --- persistence: round state + local records --------------------------------
+// One versioned doc holds the in-progress/last round (rules.serialize()) and
+// local personal records. localStorage is the offline cache; when hosted the
+// same doc is mirrored to the platform cloud-save slot (see platform.js).
+
+const SAVE_VERSION = 1;
+let results = { games: 0, wins: 0, bestSolved: 0, totalSolved: 0 };
+let startedOnce = false;   // a Play click this session: don't clobber with cloud
+
+function currentDoc() {
+  return { v: SAVE_VERSION, savedAt: Date.now(), rules: rules.serialize(), results: Object.assign({}, results) };
+}
+
+function applyResults(docResults) {
+  if (!docResults) return;
+  results = Object.assign({ games: 0, wins: 0, bestSolved: 0, totalSolved: 0 }, docResults);
+}
+
+// Restore a save doc. Returns true when a live (not over) round came with it.
+function applyDoc(doc) {
+  if (!doc || doc.v !== SAVE_VERSION) return false;
+  applyResults(doc.results);
+  if (!doc.rules || doc.rules.over) return false;
+  rules = Rules.deserialize(doc.rules);
+  T.setRules(rules);
+  return true;
+}
+
+function persist() {
+  Platform.save(currentDoc());
+  updateResume();
+}
+
+// Remote doc arrived after boot: remote wins on a conflict unless the player
+// already started a round this session; records merge by the fuller history.
+function mergeRemoteDoc(cloud) {
+  if (!cloud || cloud.v !== SAVE_VERSION) return;
+  if (!startedOnce && screenName === 'title') {
+    applyDoc(cloud);
+    setHud(); updatePromptPanel(); updateGuessPanel();
+  } else if (cloud.results && cloud.results.games > results.games) {
+    applyResults(cloud.results);
+  }
+}
+
+function roundInProgress() {
+  return !!rules && !rules.over && (
+    rules.guessCount > 0 || rules.elapsedMs > 0 || rules.seat > 0 ||
+    rules.wordIndex > 0 || rules.solvedWords.some(Boolean)
+  );
+}
+
+function updateResume() {
+  if (elBtnResumeRound) elBtnResumeRound.hidden = !roundInProgress();
+}
+
+// --- platform status line (title + in-game HUD) -------------------------------
+
+const SYNC_LABEL = { synced: 'synced', saving: 'saving…', error: 'error (retrying)', offline: 'offline' };
+
+function updateStatus() {
+  const text = Platform.isHosted()
+    ? 'Playing as ' + (Platform.getNickname() || '…') + ' · Cloud save: ' + (SYNC_LABEL[Platform.getStatus()] || Platform.getStatus())
+    : 'Local play — progress is saved on this device';
+  if (elPlatformStatus) elPlatformStatus.textContent = text;
+  if (elHudStatus) elHudStatus.textContent = text;
+}
+Platform.onChange(updateStatus);
 
 function showScreen(name) {
   screenName = name;
@@ -69,6 +142,7 @@ function onGuessSubmit() {
   const solvedBefore = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
   rules.submitGuess(v);
   const solvedAfter = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
+  persist();
   if (solvedAfter > solvedBefore) {
     Sfx.play('guess-correct');
     if (!rules.over) {
@@ -90,23 +164,36 @@ if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => Sfx.play(
 
 // screen flow
 function startGame() {
+  startedOnce = true;
   rules.reset();
   wasOver = false;
   paused = false;
   T.setTickEnabled(true);
   showScreen('game');
   setHud(); updatePromptPanel(); updateGuessPanel();
+  persist();
 }
 function showResults() {
   const solved = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
   elResultsHeadline.textContent = rules.winReason === 'all-words-completed' ? 'All words completed!' : "Time's up!";
-  elResultsBody.textContent = 'Words solved: ' + solved + ' of ' + rules.solvedWords.length + ' · Guesses: ' + rules.guessCount;
+  let body = 'Words solved: ' + solved + ' of ' + rules.solvedWords.length + ' · Guesses: ' + rules.guessCount;
+  if (results.games > 0) body += ' · Best round: ' + results.bestSolved + '/' + rules.solvedWords.length;
+  elResultsBody.textContent = body;
   showScreen('results');
 }
 if (elBtnPlay) elBtnPlay.addEventListener('click', startGame);
+if (elBtnResumeRound) elBtnResumeRound.addEventListener('click', () => {
+  if (!roundInProgress()) return;
+  paused = false;
+  T.setTickEnabled(true);
+  showScreen('game');
+  setHud(); updatePromptPanel(); updateGuessPanel();
+  updateStatus();
+  Sfx.play('game-start');
+});
 if (elBtnPause) elBtnPause.addEventListener('click', () => { paused = true; T.setTickEnabled(false); elScreenPause.hidden = false; });
 if (elBtnResume) elBtnResume.addEventListener('click', () => { paused = false; T.setTickEnabled(true); elScreenPause.hidden = true; });
-if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => { paused = false; showScreen('title'); });
+if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => { paused = false; persist(); showScreen('title'); });
 if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => showScreen('title'));
 if (elBtnGuessSubmit) elBtnGuessSubmit.addEventListener('click', onGuessSubmit);
 if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGuessSubmit(); });
@@ -116,6 +203,12 @@ let wasOver = false;
 function watchGameOver() {
   if (!rules) return;
   if (rules.over && !wasOver) {
+    const solved = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
+    results.games++;
+    results.totalSolved += solved;
+    if (rules.winReason === 'all-words-completed') results.wins++;
+    if (solved > results.bestSolved) results.bestSolved = solved;
+    persist();
     Sfx.play(rules.winReason === 'time-expired' ? 'game-over-time' : 'game-over-win');
     if (screenName === 'game') showResults();
   }
@@ -141,14 +234,34 @@ export function _debug() {
 
 // module init (runs once at import)
 rules = new Rules();
+applyDoc(Platform.loadLocal());   // offline cache first; cloud may override below
 T.setRules(rules);
 T.setTickEnabled(false);
 T.init(elCanvas);
 showScreen('title');
 setHud(); updatePromptPanel(); updateGuessPanel();
+updateResume();
+updateStatus();
 resizeCanvas();
 if (elScreenLoading) elScreenLoading.hidden = true;
 T.start();
+
+// hosted boot: remote save wins on conflict (unless a round already started here)
+Platform.init().then((res) => {
+  if (res.hosted && res.cloud) {
+    mergeRemoteDoc(res.cloud);
+    persist();   // re-mirror the merged doc into the local cache (and cloud)
+  }
+  updateStatus();
+  updateResume();
+}).catch(() => updateStatus());
+
+// keep the mirrored round state fresh while playing (debounced in platform.js)
+if (typeof window !== 'undefined') {
+  window.setInterval(() => {
+    if (screenName === 'game' && !paused && rules && !rules.over) persist();
+  }, 5000);
+}
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {

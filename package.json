@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "node tests/rules.test.mjs && node tests/threejs.test.mjs && node tests/server.test.mjs",
+    "test": "node tests/rules.test.mjs && node tests/threejs.test.mjs && node tests/platform.test.mjs && node tests/server.test.mjs",
     "test:e2e": "node tests/e2e.mjs"
   },
   "keywords": [],
