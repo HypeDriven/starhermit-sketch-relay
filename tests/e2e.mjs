@@ -80,6 +80,54 @@ async function playthrough(page, vp, errors) {
     await page.screenshot({ path: SHOT('title', vp) });
   });
 
+  await step('settings → Graphics: presets, override, persistence', async () => {
+    const attr = () => page.evaluate(() => ({ preset: document.body.dataset.gfxPreset, auto: document.body.dataset.gfxAuto, canvas: document.querySelector('#scene-canvas').dataset.gfxPreset }));
+    let a = await attr();
+    if (a.preset !== 'low' || a.auto !== '1') throw new Error('software GPU should resolve Auto to low: ' + JSON.stringify(a));
+    if (vp === 'mobile') await page.tap('#btn-settings'); else await page.click('#btn-settings');
+    await page.waitForSelector('#screen-settings:not([hidden])');
+    const autoLabel = await page.textContent('#gfx-preset-auto');
+    if (!/Low/.test(autoLabel)) throw new Error('auto label: ' + autoLabel);
+    // panel fits the viewport and never scrolls sideways
+    const fit = await page.evaluate(() => {
+      const p = document.querySelector('.settings-panel'), r = p.getBoundingClientRect();
+      return { r: [r.left, r.top, r.right, r.bottom], vw: innerWidth, vh: innerHeight, sx: p.scrollWidth - p.clientWidth };
+    });
+    if (fit.r[0] < 0 || fit.r[1] < 0 || fit.r[2] > fit.vw || fit.r[3] > fit.vh || fit.sx > 0) throw new Error('settings panel does not fit: ' + JSON.stringify(fit));
+    await page.selectOption('#gfx-preset', 'low');
+    a = await attr();
+    if (a.preset !== 'low' || a.auto !== '0' || a.canvas !== 'low') throw new Error('low not applied: ' + JSON.stringify(a));
+    await page.selectOption('#gfx-preset', 'ultra');
+    await page.waitForTimeout(600);
+    await page.selectOption('#gfx-preset', 'high');
+    await page.waitForTimeout(400);
+    a = await attr();
+    if (a.preset !== 'high') throw new Error('high not applied: ' + JSON.stringify(a));
+    let summary = await page.textContent('#gfx-summary');
+    if (!/Shadows 2048²/.test(summary) || !/SMAA/.test(summary)) throw new Error('high summary: ' + summary);
+    await page.selectOption('#gfx-shadows', 'off');
+    summary = await page.textContent('#gfx-summary');
+    if (/Shadows/.test(summary)) throw new Error('shadow override not applied: ' + summary);
+    await page.screenshot({ path: SHOT('settings', vp) });
+    if (vp === 'desktop') await page.keyboard.press('Escape'); else await page.tap('#btn-settings-close');
+    await page.waitForSelector('#screen-settings', { state: 'hidden' });
+    // survives reload
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#screen-title:not([hidden])');
+    a = await attr();
+    if (a.preset !== 'high' || a.auto !== '0') throw new Error('preset lost on reload: ' + JSON.stringify(a));
+    await page.click('#btn-settings');
+    if ((await page.inputValue('#gfx-shadows')) !== 'off') throw new Error('override lost on reload');
+    if ((await page.inputValue('#gfx-preset')) !== 'high') throw new Error('preset select lost on reload');
+    // choosing a preset clears overrides; back to Auto keeps the rest of the run fast
+    await page.selectOption('#gfx-preset', 'auto');
+    if ((await page.inputValue('#gfx-shadows')) !== 'preset') throw new Error('preset did not clear overrides');
+    a = await attr();
+    if (a.preset !== 'low' || a.auto !== '1') throw new Error('auto not restored: ' + JSON.stringify(a));
+    await page.click('#btn-settings-close');
+    await page.waitForSelector('#screen-settings', { state: 'hidden' });
+  });
+
   await step('start game via Play button', async () => {
     await page.click('#btn-play');
     await page.waitForSelector('#screen-game:not([hidden])');
@@ -96,6 +144,11 @@ async function playthrough(page, vp, errors) {
     await page.click('#btn-pause');
     await page.waitForSelector('#screen-pause:not([hidden])');
     await page.screenshot({ path: SHOT('pause', vp) });
+    await page.click('#btn-pause-settings');
+    await page.waitForSelector('#screen-settings:not([hidden])');
+    await page.click('#btn-settings-close');
+    await page.waitForSelector('#screen-settings', { state: 'hidden' });
+    if (await page.locator('#screen-pause').isHidden()) throw new Error('pause overlay lost after settings');
     await page.click('#btn-resume');
     await page.waitForSelector('#screen-pause', { state: 'hidden' });
     if (await page.locator('#screen-game').isHidden()) throw new Error('game screen lost after resume');
@@ -173,7 +226,7 @@ let browser = null;
 try {
   browser = await chromium.launch({
     executablePath: '/usr/bin/google-chrome',
-    args: ['--no-sandbox', '--enable-unsafe-swiftshader'],
+    args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   });
 
   const allErrors = [];
@@ -185,7 +238,7 @@ try {
     page._baseUrl = base;
     const errors = [];
     page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+    page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`console ${m.type()}: ${m.text()}`); });
     try {
       await playthrough(page, 'desktop', errors);
     } finally {
@@ -201,7 +254,7 @@ try {
     page._baseUrl = base;
     const errors = [];
     page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+    page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`console ${m.type()}: ${m.text()}`); });
     try {
       await playthrough(page, 'mobile', errors);
     } finally {

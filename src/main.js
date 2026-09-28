@@ -3,6 +3,7 @@ import { Rules } from './rules.js';
 import * as T from './threejs.js';
 import * as Sfx from './sfx.js';
 import * as Platform from './platform.js';
+import * as Settings from './settings.js';
 
 let rules;                  // Rules instance, created at module init below
 let screenName = 'title';   // 'title' | 'game'
@@ -251,6 +252,7 @@ applyDoc(Platform.loadLocal());   // offline cache first; cloud may override bel
 T.setRules(rules);
 T.setTickEnabled(false);
 T.init(elCanvas);
+Settings.init();
 showScreen('title');
 setHud(); updatePromptPanel(); updateGuessPanel();
 updateResume();
