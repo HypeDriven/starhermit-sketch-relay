@@ -107,3 +107,4 @@ html, body {
   padding: 3px 7px; border-radius: 6px;
 }
 .hud-item, .hud-status, .platform-status { text-shadow: 0 1px 6px rgba(8,10,16,.85), 0 0 2px rgba(8,10,16,.9); }
+.toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: min(92vw, 520px); margin: 0; padding: 10px 16px; border-radius: 10px; background: rgba(20,24,34,.94); color: #f1f3f8; font-size: 14px; text-align: center; overflow-wrap: anywhere; box-shadow: 0 6px 20px rgba(0,0,0,.4); }

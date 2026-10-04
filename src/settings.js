@@ -4,6 +4,7 @@
 // The panel's strings are localized (en-US, en-GB, es-419, es-ES, de-DE,
 // fr-FR, fr-CA, pt-BR, it-IT); locale comes from ?lang= or navigator.languages.
 import * as T from './threejs.js';
+import { actionFor } from './platform.js';
 import { PRESETS, CATEGORIES, presetTier, choosePreset, SHADOW_MAP, PARTICLE_COUNT } from './gfx.js';
 
 export const STORAGE_KEY = 'sketch-relay.graphics.v1';
@@ -231,11 +232,28 @@ function refresh() {
   }
 }
 
+let commitHook = null;
+/** Called with the graphics settings after every change (platform settings KV mirror). */
+export function onCommit(fn) { commitHook = fn; }
+
 function commit() {
   store(saved);
   T.setGraphics(saved);
   refresh();
+  if (commitHook) { try { commitHook(Object.assign({}, saved)); } catch (_) { /* mirror is best-effort */ } }
 }
+
+/** Apply graphics settings from the platform (they win over the local copy). */
+export function applySaved(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  saved = Object.assign({}, obj);
+  store(saved);
+  T.setGraphics(saved);
+  refresh();
+}
+
+/** The UI locale picked at init. */
+export function getLocale() { return locale; }
 
 export function open(from) {
   opener = from || document.activeElement;
@@ -268,7 +286,7 @@ export function init() {
   $('btn-settings-close').addEventListener('click', close);
   panel.addEventListener('click', (e) => { if (e.target === panel) close(); });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isOpen()) { e.preventDefault(); e.stopPropagation(); close(); }
+    if (actionFor(e.code) === 'back' && isOpen()) { e.preventDefault(); e.stopPropagation(); close(); }
   }, true);
   buildForm();
   T.onGraphicsChange(() => { if (isOpen()) refresh(); });

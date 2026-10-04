@@ -185,13 +185,14 @@ No module may mutate rules state except through a validated command. Rendering c
 
 ### Packaging and launch
 - Ship a browser distribution with `starhermit.txt` at its root, `name=Sketch Relay`, and `launch=index.html`. Keep source files, secrets, design documents, and source maps outside the uploaded distribution.
-- Read the game scope from the short-lived launch token rather than hard-coding a slug. Use same-origin `/api` and `/ws` routes when hosted. Re-mint launch tokens via `POST /api/v1/games/{slug}/launch-token` every 45 min; never persist access or launch tokens in local storage.
+- `starhermit-sdk.js` (unmodified copy of the canonical StarHermit SDK) loads before the game and `StarHermit.init()` runs inline at page load: it reads `#game_token=` (library launch) or `#access_token=` (sign-in return), strips it, takes the slug from the `game_scope` claim and renews the launch token before expiry. `src/platform.js` is a thin adapter over `window.StarHermit`; if renewal is refused the game shows a localized notice and keeps playing locally. Without a token it makes no network calls; tokens are never persisted.
 - Synchronize countdowns and daily boundaries with `GET /api/v1/time` using round-trip-adjusted offset. Treat rate limits and structured `{"error":"..."}` responses as recoverable UI states. (This title ships no countdown/daily mode yet.)
 
 ### Identity, profile, presence, and preferences
-- Support guest practice locally, then offer account sign-in for durable progress. Show the account nickname from `GET /api/v1/users/{userId}/profile` in the title/HUD status line (never usernames); send no presence heartbeats — the platform exposes no per-game presence endpoints.
-- Store accessibility, audio, graphics tier, tutorial completion, camera preference, and rules options through per-game settings. Declare desktop action bindings and read player overrides; touch mappings remain responsive UI controls.
-- Cloud-save the round state and personal records as one versioned document (zip+base64) in the platform cloud-save slot; localStorage remains the offline cache. On a boot conflict the remote doc wins; a round already started locally is never clobbered.
+- Guests play locally. On `*.starhermit.com` without a token the title shows **Sign in with StarHermit** (`StarHermit.signIn()`), hidden when signed in or running locally. Signed-in players see their profile nickname (fallback `Player <id prefix>`, never usernames) in the title/HUD status line, and an **Invite a friend** button copies `StarHermit.inviteLink()` with a toast. These controls are localized in all 9 locales (`src/sh-strings.js`). No presence heartbeats are sent.
+- Graphics settings (the only player preferences) are mirrored to the per-game settings KV under `graphics` on every change; on start the platform value wins over the local copy.
+- Keyboard actions are declared as `control.*` lines in `starhermit.txt` (`submit` = Enter, `back` = Escape closes Settings); `StarHermit.loadBindings()` applies player overrides and keydown is routed by `event.code`.
+- The round state and personal records are one versioned document cloud-saved to slot `game:<slug>` via the SDK (`loadJSON` on start, debounced `saveJSON`, `flushSave(true)` on pagehide/hidden); localStorage remains the offline cache. On a boot conflict the remote doc wins; a round already started locally is never clobbered.
 
 ### Discovery, activity, and social layer
 - Do not start/end launch activity or send telemetry from the client: the platform exposes no per-game activity/telemetry endpoints reachable by launch tokens. Surface entitlement or catalog state only in host-owned chrome; the game itself must remain playable without promotional interruption.
@@ -205,6 +206,7 @@ No module may mutate rules state except through a validated command. Rendering c
 - Competitive outcomes, rating changes, and achievement unlocks are server-authoritative. Never accept a client-supplied winner, score, hidden state, or elapsed time as truth.
 
 ### Sessions and transport
+- This build is a solo prompt relay and its `server.js` is a static host (no game script), so it does not use platform sessions, matchmaking, session invites, chat, replays, achievements or leaderboards; the items below describe the multiplayer design target.
 - Create Realtime Rooms for lobbies, invitations, quick join, AI seats where valid, seat assignment, start, backfill policy, and results. Bind the room to an authoritative scripted session for rules and achievement delivery.
 - Send high-frequency input/state frames over the realtime WebSocket. Use compact binary gameplay frames and JSON control frames only for lifecycle events. Configure tick rate from actual simulation needs, apply sequence numbers, input acknowledgements, interpolation, bounded prediction, and reconnect snapshots.
 - Use the opaque peer relay only for non-authoritative ephemeral data that benefits from direct fan-out, such as cursors or drawing strokes; never use relay packets as the source of truth for score, collision, roles, or inventory.

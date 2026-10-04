@@ -1,31 +1,24 @@
-// Sketch Relay — platform adapter tests (run in node with stubbed browser globals).
-// Covers the stored-zip helper, JWT decode, launch-token read/strip, and the
-// hosted flow against a stubbed fetch: Bearer auth, profile nickname + id8
-// fallback, cloud PUT body decodes back to the doc, remote load on reload,
-// and the tokenless offline path (localStorage only, no platform calls).
+// Sketch Relay — platform adapter tests (node, stubbed browser globals).
+// Loads src/platform.js over the shipped StarHermit SDK with a stubbed fetch
+// and launch fragment: token read/strip, Bearer auth, profile nickname,
+// cloud-save round-trip on game:<slug>, settings KV patch, control bindings,
+// sign-out, and the tokenless path (localStorage only, no fetch at all).
 import { Buffer } from 'node:buffer';
+import { readFileSync } from 'node:fs';
 
+const sdkModule = { exports: {} };
+new Function('module', readFileSync(new URL('../starhermit-sdk.js', import.meta.url), 'utf8'))(sdkModule);
+const SDK = sdkModule.exports;
+
+const USER = 'u1234abcd-xyz';
+const SLUG = 'sketch-relay-test';
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
-const JWT = b64u({ alg: 'none' }) + '.' + b64u({ sub: 'u1234abcd-xyz', game_scope: 'sketch-relay' }) + '.';
-const JWT2 = b64u({ alg: 'none' }) + '.' + b64u({ sub: 'u1234abcd-xyz', game_scope: 'sketch-relay', seq: 2 }) + '.';
+const JWT = b64u({ alg: 'none' }) + '.' + b64u({ sub: USER, game_scope: SLUG, exp: Math.floor(Date.now() / 1000) + 3600 }) + '.';
 
 let passed = 0;
 function ok(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); passed++; }
 function eq(a, b, msg) { ok(JSON.stringify(a) === JSON.stringify(b), (msg || 'eq') + ': ' + JSON.stringify(a) + ' !== ' + JSON.stringify(b)); }
 
-// --- stubbed browser environment (must exist before the module is imported) ---
-const loc = { pathname: '/', search: '', hash: '#game_token=' + JWT + '&session_id=sess-1' };
-let strippedUrl = null;
-globalThis.window = { location: loc, addEventListener() {} };
-globalThis.history = {
-  replaceState(_a, _b, url) {
-    strippedUrl = url;
-    const i = url.indexOf('#');
-    loc.hash = i >= 0 ? url.slice(i) : '';
-    const q = url.indexOf('?');
-    loc.search = q >= 0 && (i < 0 || q < i) ? url.slice(q, i > q ? i : undefined) : '';
-  },
-};
 const store = new Map();
 globalThis.localStorage = {
   getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -34,128 +27,99 @@ globalThis.localStorage = {
   clear: () => store.clear(),
 };
 globalThis.document = { addEventListener() {}, hidden: false };
+globalThis.window = { addEventListener() {} };
 
-// --- stubbed platform HTTP ----------------------------------------------------
+function res(status, body) {
+  const bytes = body instanceof Uint8Array ? body : null;
+  const text = bytes || body == null ? '' : JSON.stringify(body);
+  return {
+    status, ok: status >= 200 && status < 300, statusText: String(status),
+    text: async () => text, json: async () => JSON.parse(text),
+    arrayBuffer: async () => (bytes || Buffer.from(text)).slice().buffer,
+  };
+}
 const calls = [];
-let cloudZip = null;                      // what GET cloud-saves returns (null → 404)
-const profileMode = { ok: true, nickname: 'Hermit Ana' };
-globalThis.fetch = async (url, opts = {}) => {
-  const u = String(url);
-  calls.push({ url: u, method: opts.method || 'GET', headers: opts.headers || {}, body: opts.body });
-  const json = (o) => ({ ok: true, status: 200, json: async () => o });
-  if (u.startsWith('/api/v1/users/') && u.endsWith('/profile')) {
-    if (!profileMode.ok) return { ok: false, status: 404, json: async () => ({}) };
-    return json({ id: 'u1234abcd-xyz', username: 'hermit_ana', nickname: profileMode.nickname });
+let cloudZip = null;
+const settings = {};
+async function fetchStub(url, opts = {}) {
+  const method = opts.method || 'GET';
+  calls.push({ url, method, headers: opts.headers || {}, body: opts.body, keepalive: opts.keepalive });
+  const path = url.split('?')[0];
+  if (path === `/api/v1/users/${USER}/profile`) return res(200, { username: 'hermit_ana', nickname: 'Hermit Ana' });
+  if (path === '/api/v1/me/cloud-saves/' + encodeURIComponent('game:' + SLUG)) {
+    if (method === 'PUT') { cloudZip = Buffer.from(JSON.parse(opts.body).dataBase64, 'base64'); return res(204); }
+    return cloudZip ? res(200, new Uint8Array(cloudZip)) : res(404);
   }
-  if (u === '/api/v1/me/cloud-saves/sketch-relay' && (opts.method || 'GET') === 'PUT') {
-    cloudZip = Buffer.from(JSON.parse(opts.body).dataBase64, 'base64');
-    return json({});
+  if (path === `/api/v1/games/${SLUG}/settings`) {
+    if (method === 'PATCH') Object.assign(settings, JSON.parse(opts.body).settings);
+    return res(200, { settings });
   }
-  if (u === '/api/v1/me/cloud-saves/sketch-relay') {
-    if (!cloudZip) return { ok: false, status: 404, json: async () => ({}) };
-    return { ok: true, status: 200, arrayBuffer: async () => cloudZip.buffer.slice(cloudZip.byteOffset, cloudZip.byteOffset + cloudZip.byteLength) };
-  }
-  if (u === '/api/v1/games/sketch-relay/launch-token') return json({ token: JWT2 });
-  throw new Error('unexpected fetch: ' + u);
+  if (path === `/api/v1/games/${SLUG}/controls`) return res(200, { actions: [{ action: 'submit', codes: ['Tab'] }] });
+  return res(404);
+}
+
+// --- hosted -------------------------------------------------------------------
+let stripped = null;
+const win = {
+  location: { hash: '#game_token=' + JWT + '&session_id=sess-1', search: '', pathname: '/', hostname: 'localhost', href: 'http://localhost/' },
+  history: { state: null, replaceState(_a, _b, url) { stripped = url; } },
 };
-
+globalThis.StarHermit = SDK.create({ window: win, fetch: fetchStub, setTimeout: () => 0, clearTimeout() {} });
 const P = await import('../src/platform.js');
-const I = P._internals;
 
-// --- stored-zip helper --------------------------------------------------------
-const enc = new TextEncoder();
-const dec = new TextDecoder();
-const sample = enc.encode('{"hello":"zip","n":42}');
-const zip = I.zipStore('save.json', sample);
+const r = await P.init();
+ok(r.hosted === true, 'hosted with fragment token');
+eq(stripped, '/', 'game_token + session_id stripped from the fragment');
+eq(P.getSlug(), SLUG, 'slug from game_scope');
+ok(r.cloud === null, '404 cloud slot → null doc');
+await new Promise((res) => setTimeout(res, 10));
+eq(P.getNickname(), 'Hermit Ana', 'nickname from profile');
+ok(calls.every((c) => c.headers.Authorization === 'Bearer ' + JWT), 'Bearer on every call');
+ok(!calls.some((c) => c.url === '/api/v1/me'), 'never /api/v1/me');
+eq(P.actionFor('Tab'), 'submit', 'control override applied');
+eq(P.actionFor('Escape'), 'back', 'default control kept');
 
-ok(I.crc32(enc.encode('123456789')) === 0xcbf43926, 'crc32 known value');
-eq(Array.from(zip.slice(0, 4)), [0x50, 0x4b, 0x03, 0x04], 'local header sig');
-ok(dec.decode(zip.slice(30, 30 + 'save.json'.length)) === 'save.json', 'entry name in local header');
-ok(zip[8] === 0 && zip[9] === 0, 'stored (no compression)');
-ok(zip[zip.length - 22] === 0x50 && zip[zip.length - 21] === 0x4b && zip[zip.length - 20] === 0x05 && zip[zip.length - 19] === 0x06, 'EOCD record at end');
-const cdOff = zip.length - 22 - ('save.json'.length + 46);
-eq([zip[cdOff], zip[cdOff + 1], zip[cdOff + 2], zip[cdOff + 3]], [0x50, 0x4b, 0x01, 0x02], 'central directory where EOCD points');
-eq(Array.from(I.unzipFirstEntry(zip)), Array.from(sample), 'zip round trip');
-eq(Array.from(I.base64ToBytes(I.bytesToBase64(sample))), Array.from(sample), 'base64 round trip');
-
-const doc = { v: 1, rules: { seat: 2, wordIndex: 1, elapsedMs: 1234, guessCount: 7, solvedWords: '111000000000000000000000000000000000' }, results: { games: 3, wins: 1, bestSolved: 20, totalSolved: 41 } };
-eq(I.decodeDoc(I.encodeDoc(doc)), doc, 'encodeDoc/decodeDoc round trip');
-
-eq(I.decodeJwtPayload(JWT), { sub: 'u1234abcd-xyz', game_scope: 'sketch-relay' }, 'JWT payload decoded (sub + game_scope)');
-eq(I.decodeJwtPayload('garbage'), {}, 'garbage token decodes to {}');
-
-// --- launch token: fragment read once + stripped -------------------------------
-eq(I.readLaunchToken(), JWT, 'fragment token read');
-eq(strippedUrl, '/#session_id=sess-1', 'game_token stripped, session_id kept');
-eq(loc.hash, '#session_id=sess-1', 'location reflects the strip');
-eq(I.readLaunchToken(), null, 'token read exactly once');
-loc.hash = '';
-eq(I.readLaunchToken(), null, 'no token without hash/query');
-loc.search = '?token=' + JWT;
-eq(I.readLaunchToken(), JWT, 'query fallback kept for local dev');
-loc.search = '';
-
-// --- hosted flow ----------------------------------------------------------------
-loc.hash = '#game_token=' + JWT;
-const res = await P.init();
-ok(res.hosted === true, 'hosted with fragment token');
-ok(res.cloud === null, '404 cloud slot → null doc');
-const profileCall = calls.find((c) => c.url === '/api/v1/users/u1234abcd-xyz/profile');
-ok(!!profileCall, 'profile fetched from /users/{sub}/profile');
-eq(profileCall.headers.Authorization, 'Bearer ' + JWT, 'Bearer on profile call');
-ok(!calls.some((c) => c.url.includes('/api/v1/me') && c.method === 'GET' && c.url.endsWith('/profile')), 'never GET /api/v1/me');
-await new Promise((r) => setTimeout(r, 20));
-eq(P.getNickname(), 'Hermit Ana', 'nickname from profile (username never shown)');
-
-const putCalls = () => calls.filter((c) => c.url === '/api/v1/me/cloud-saves/sketch-relay' && c.method === 'PUT');
+const doc = { v: 1, rules: { seat: 2, wordIndex: 1 }, results: { games: 3, wins: 1, bestSolved: 20, totalSolved: 41 } };
 P.save(doc);
 eq(P.getStatus(), 'saving', 'save marks saving');
 ok(store.has('sketchrelay.save.v1'), 'localStorage offline cache written');
 await P.flush();
 eq(P.getStatus(), 'synced', 'flush confirms synced');
-eq(putCalls().length, 1, 'one PUT after debounced flush');
-eq(putCalls()[0].headers.Authorization, 'Bearer ' + JWT, 'Bearer on cloud PUT');
-const sentDoc = I.decodeDoc(JSON.parse(putCalls()[0].body).dataBase64);
-eq(sentDoc.rules, doc.rules, 'PUT body decodes back to the doc (rules)');
-eq(sentDoc.results, doc.results, 'PUT body decodes back to the doc (results)');
-ok(typeof sentDoc.savedAt === 'number', 'doc carries savedAt');
-const nCallsAfterFlush = calls.length;
-await P.flush();
-eq(calls.length, nCallsAfterFlush, 'second flush is a no-op (nothing pending)');
+const put = calls.find((c) => c.method === 'PUT');
+ok(put && put.url.endsWith('/cloud-saves/game%3A' + SLUG), 'PUT to game:<slug>');
+ok(put.keepalive === true, 'flush uses keepalive');
+const back = await globalThis.StarHermit.loadJSON();
+eq(back.results, doc.results, 'cloud round-trip');
 
-// --- reload: remote doc wins -----------------------------------------------------
-loc.hash = '#game_token=' + JWT;
-const res2 = await P.init();
-ok(res2.hosted === true, 'reload re-hosts');
-ok(!!res2.cloud, 'cloud doc returned on reload');
-eq(res2.cloud.rules, doc.rules, 'remote round state matches what was saved');
-eq(res2.cloud.results, doc.results, 'remote records match');
-const getCall = calls[calls.length - 1];
-eq(getCall.method, 'GET', 'cloud load is a GET');
-eq(getCall.headers.Authorization, 'Bearer ' + JWT, 'Bearer on cloud GET');
+P.pushSettings({ graphics: { preset: 'low' } });
+await new Promise((res) => setTimeout(res, 0));
+eq(settings.graphics, { preset: 'low' }, 'settings PATCH');
+eq((await P.loadSettings()).graphics, { preset: 'low' }, 'settings read back');
+ok(P.inviteLink().includes(`/game-invite/${USER}/${SLUG}`), 'invite link');
+ok(P.canSignIn() === false, 'no sign-in button when signed in');
 
-// --- profile failure → id8 fallback (fresh module instance: nickname is cached per instance) ---
-profileMode.ok = false;
-loc.hash = '#game_token=' + JWT;
-const P2 = await import('../src/platform.js?fallback-test');
-const resF = await P2.init();
-ok(resF.hosted === true, 'fallback run hosts');
-await new Promise((r) => setTimeout(r, 20));
-eq(P2.getNickname(), 'Player u1234abc', 'nickname fallback is Player + id8');
-profileMode.ok = true;
+globalThis.StarHermit.signOut('expired');
+ok(P.isHosted() === false && P.inviteLink() === null, 'signed out → local play');
 
-// --- tokenless offline path -------------------------------------------------------
-const putCount = putCalls().length;
-loc.hash = '';
+// --- tokenless ------------------------------------------------------------------
+const P2 = await import('../src/platform.js?standalone');
+const quiet = [];
+globalThis.StarHermit = SDK.create({
+  window: { location: { hash: '', search: '', pathname: '/', hostname: 'localhost', href: 'http://localhost/' }, history: { replaceState() {} } },
+  fetch: async (u) => { quiet.push(u); return res(500); },
+});
 store.clear();
-const res3 = await P.init();
-ok(res3.hosted === false, 'no token → not hosted');
-eq(P.getStatus(), 'offline', 'offline status without token');
-P.save(doc);
-eq(P.getStatus(), 'offline', 'offline save keeps offline status');
+const r2 = await P2.init();
+ok(r2.hosted === false, 'no token → not hosted');
+P2.save(doc);
+await P2.flush();
+P2.pushSettings({ graphics: {} });
+eq(await P2.loadSettings(), {}, 'no settings standalone');
+eq(P2.getStatus(), 'offline');
 ok(store.has('sketchrelay.save.v1'), 'offline save still hits localStorage');
-eq(putCalls().length, putCount, 'offline save issues no platform calls');
-eq(P.loadLocal().rules, doc.rules, 'loadLocal returns the cached doc');
+eq(P2.loadLocal().rules, doc.rules, 'loadLocal returns the cached doc');
+ok(P2.canSignIn() === false, 'no sign-in off-platform');
+eq(quiet.length, 0, 'no fetch standalone');
 
 console.log(`platform: ${passed} assertions passed`);
 process.exit(0);

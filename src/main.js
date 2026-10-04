@@ -4,6 +4,7 @@ import * as T from './threejs.js';
 import * as Sfx from './sfx.js';
 import * as Platform from './platform.js';
 import * as Settings from './settings.js';
+import { shStrings } from './sh-strings.js';
 
 let rules;                  // Rules instance, created at module init below
 let screenName = 'title';   // 'title' | 'game'
@@ -102,6 +103,42 @@ function updateStatus() {
     : 'Local play — progress is saved on this device';
   if (elPlatformStatus) elPlatformStatus.textContent = text;
   if (elHudStatus) elHudStatus.textContent = text;
+  updateAccountButtons();
+}
+
+// --- StarHermit account controls: sign-in (on-platform, no token) and invite ----
+const elBtnSignIn = document.getElementById('btn-signin');
+const elBtnInvite = document.getElementById('btn-invite');
+const elToast = document.getElementById('toast');
+let toastTimer = 0;
+function toast(msg) {
+  if (!elToast) return;
+  elToast.textContent = msg;
+  elToast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { elToast.hidden = true; }, 3200);
+}
+function updateAccountButtons() {
+  if (elBtnSignIn) elBtnSignIn.hidden = !Platform.canSignIn();
+  if (elBtnInvite) elBtnInvite.hidden = !Platform.inviteLink();
+}
+function initAccountButtons() {
+  const L = shStrings(Settings.getLocale());
+  if (elBtnSignIn) { elBtnSignIn.textContent = L.signIn; elBtnSignIn.addEventListener('click', () => Platform.signIn()); }
+  if (elBtnInvite) {
+    elBtnInvite.textContent = L.invite;
+    elBtnInvite.addEventListener('click', async () => {
+      const link = Platform.inviteLink();
+      if (!link) return;
+      try { await navigator.clipboard.writeText(link); toast(L.copied); }
+      catch { toast(L.copyFailed + ': ' + link); }
+    });
+  }
+  let wasHosted = false;
+  Platform.onChange(() => {
+    if (wasHosted && !Platform.isHosted()) toast(L.signedOut);
+    wasHosted = Platform.isHosted();
+  });
 }
 Platform.onChange(updateStatus);
 
@@ -205,7 +242,7 @@ if (elBtnResume) elBtnResume.addEventListener('click', () => { paused = false; T
 if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => { paused = false; persist(); showScreen('title'); });
 if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => showScreen('title'));
 if (elBtnGuessSubmit) elBtnGuessSubmit.addEventListener('click', onGuessSubmit);
-if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onGuessSubmit(); });
+if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (Platform.actionFor(e.code) === 'submit') onGuessSubmit(); });
 
 // game-over jingle, whichever path (guess or timer) ended the game
 let wasOver = false;
@@ -253,6 +290,8 @@ T.setRules(rules);
 T.setTickEnabled(false);
 T.init(elCanvas);
 Settings.init();
+initAccountButtons();
+Settings.onCommit((graphics) => Platform.pushSettings({ graphics }));
 showScreen('title');
 setHud(); updatePromptPanel(); updateGuessPanel();
 updateResume();
@@ -267,6 +306,8 @@ Platform.init().then((res) => {
     mergeRemoteDoc(res.cloud);
     persist();   // re-mirror the merged doc into the local cache (and cloud)
   }
+  // platform settings win over the local graphics copy
+  if (res.hosted) Platform.loadSettings().then((s) => { if (s && s.graphics) Settings.applySaved(s.graphics); });
   updateStatus();
   updateResume();
 }).catch(() => updateStatus());

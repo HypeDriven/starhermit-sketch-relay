@@ -4,9 +4,11 @@
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="icon" type="image/png" href="./icon.png" />
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sketch Relay</title>
 <link rel="stylesheet" href="./src/style.css" />
+<script src="starhermit-sdk.js"></script>
+<script>StarHermit.init();</script>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
 <script type="module" src="./src/main.js"></script>
 <script type="module" src="./src/sfx.js"></script>
@@ -28,6 +30,8 @@
       <button id="btn-play" class="btn btn-primary">Play</button>
       <button id="btn-resume-round" class="btn" hidden>Resume round</button>
       <button id="btn-settings" class="btn">Settings</button>
+      <button id="btn-signin" class="btn" hidden>Sign in with StarHermit</button>
+      <button id="btn-invite" class="btn" hidden>Invite a friend</button>
     </div>
     <p id="platform-status" class="platform-status"></p>
   </section>
@@ -85,6 +89,8 @@
     <div id="results-body" class="panel"></div>
     <button id="btn-back-to-title" class="btn btn-primary">Back to title</button>
   </section>
+
+  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
 
   <!-- Loading -->
   <section id="screen-loading" class="overlay">
