@@ -29,25 +29,25 @@ html, body {
 .btn-primary:hover { background: #d84a3d; }
 .btn-small { font-size: 15px; padding: 9px 16px; border-radius: 8px; min-height: 44px; }
 
-.hud-bar { display: flex; align-items: center; justify-content: space-between; width: min(1040px, 92vw); margin: 0 auto; gap: 16px; }
+.hud-bar { display: flex; align-items: center; justify-content: space-between; width: min(1040px, calc(92vw / var(--ui-scale, 1))); margin: 0 auto; gap: 16px; }
 .hud-item { font-size: 17px; color: #e8eaee; white-space: nowrap; }
 .hud-status { color: #aab2c0; font-size: 14px; }
 .platform-status { font-size: 14px; color: #aab2c0; margin: 0; }
 
-.panel { width: min(560px, 88vw); background: rgba(20,24,33,.92); border-radius: 12px; padding: 18px 22px; margin: 18px auto; text-align: center; }
+.panel { width: min(560px, calc(88vw / var(--ui-scale, 1))); background: rgba(20,24,33,.92); border-radius: 12px; padding: 18px 22px; margin: 18px auto; text-align: center; }
 .panel-title { font-size: 15px; letter-spacing: .12em; color: #aab2c0; margin: 0 0 8px; text-transform: uppercase; }
 .panel-text { font-size: 34px; font-weight: 700; color: #ffffff; margin: 0; line-height: 1.25; word-break: break-word; }
 
 .guess-row { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 6px; }
 #guess-input {
-  width: min(380px, 70vw); font-size: 19px; color: #ffffff;
+  width: min(380px, calc(70vw / var(--ui-scale, 1))); font-size: 19px; color: #ffffff;
   background: #2a2f3a; border: none; border-radius: 8px; padding: 12px 14px; outline: none;
 }
 
 .overlay-title { font-size: 30px; margin: 0; color: #ffffff; text-align: center; }
 .loading-text { font-size: 20px; color: #d7dbe2; }
 
-#results-body .panel { width: min(680px, 90vw); background: rgba(15,18,26,.94); padding: 22px 26px; margin-top: 10px; text-align: left; font-size: 17px; line-height: 1.7; color: #eef0f3; }
+#results-body .panel { width: min(680px, calc(90vw / var(--ui-scale, 1))); background: rgba(15,18,26,.94); padding: 22px 26px; margin-top: 10px; text-align: left; font-size: 17px; line-height: 1.7; color: #eef0f3; }
 
 .how-to { text-align: left; }
 .how-text { margin: 0; font-size: 15px; line-height: 1.5; color: #d7dbe2; }
@@ -66,6 +66,14 @@ html, body {
   #guess-input { width: 100%; font-size: 16px; padding: 8px 10px; margin-bottom: 6px; }
   #guess-panel .btn { padding: 10px 18px; font-size: 16px; }
   .guess-feedback { margin-top: 6px; }
+  /* title: keep Play and the menu buttons above the fold */
+  .screen#screen-title { gap: 8px; padding: 8px 0; }
+  .title-name { font-size: 26px; margin: 0; }
+  .tagline { font-size: 14px; margin: 0; }
+  #screen-title .how-to { width: min(720px, 92vw); margin: 0 auto; padding: 10px 16px; }
+  #screen-title .panel-title { font-size: 12px; margin-bottom: 4px; }
+  #screen-title .how-text { font-size: 13px; line-height: 1.4; }
+  #screen-title .btn { padding: 10px 22px; font-size: 16px; }
 }
 
 /* ---------- title legibility over the lit drawing wall ---------- */
@@ -76,7 +84,7 @@ html, body {
 /* ---------- settings (graphics) ---------- */
 .settings-overlay { z-index: 3; padding: 16px; background: rgba(10,12,18,.72); }
 .settings-panel {
-  width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
+  width: min(560px, 100%); max-height: calc(100dvh / var(--ui-scale, 1) - 32px); overflow-y: auto; overscroll-behavior: contain;
   margin: 0; text-align: left; background: rgba(20,24,33,.97); box-shadow: 0 18px 50px rgba(0,0,0,.45);
 }
 .settings-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -107,4 +115,13 @@ html, body {
   padding: 3px 7px; border-radius: 6px;
 }
 .hud-item, .hud-status, .platform-status { text-shadow: 0 1px 6px rgba(8,10,16,.85), 0 0 2px rgba(8,10,16,.9); }
-.toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: min(92vw, 520px); margin: 0; padding: 10px 16px; border-radius: 10px; background: rgba(20,24,34,.94); color: #f1f3f8; font-size: 14px; text-align: center; overflow-wrap: anywhere; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.toast { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; max-width: min(calc(92vw / var(--ui-scale, 1)), 520px); margin: 0; padding: 10px 16px; border-radius: 10px; background: rgba(20,24,34,.94); color: #f1f3f8; font-size: 14px; text-align: center; overflow-wrap: anywhere; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+
+/* legibility: HUD/status text sits on a dark pill (the lit drawing wall behind it is light grey) */
+.hud-bar .hud-item:not(:empty), .platform-status:not(:empty), .tagline { background: rgba(20,24,33,.78); padding: 6px 12px; border-radius: 8px; }
+/* pause: a darker scrim so the heading and buttons don't blend with the prompt card behind them */
+#screen-pause { background: rgba(10,12,18,.82); }
+
+/* ---------- large screens: shared ui-scale.js sets --ui-scale (1 up to 1600x1000).
+   Every DOM layer above the full-viewport 3D canvas is zoomed once; the canvas is not. */
+#app > :not(#scene-canvas), body > #fps-meter { zoom: var(--ui-scale, 1); }
