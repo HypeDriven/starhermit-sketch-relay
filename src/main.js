@@ -75,7 +75,9 @@ function persist() {
 function mergeRemoteDoc(cloud) {
   if (!cloud || cloud.v !== SAVE_VERSION) return;
   if (!startedOnce && screenName === 'title') {
-    applyDoc(cloud);
+    // No live round in the cloud means it ended (or never existed) elsewhere:
+    // drop the stale local round too, or the persist() below would push it back.
+    if (!applyDoc(cloud)) { rules = new Rules(); T.setRules(rules); }
     setHud(); updatePromptPanel(); updateGuessPanel();
   } else if (cloud.results && cloud.results.games > results.games) {
     applyResults(cloud.results);
