@@ -119,6 +119,7 @@ eq(P2.getStatus(), 'offline');
 ok(store.has('sketchrelay.save.v1'), 'offline save still hits localStorage');
 eq(P2.loadLocal().rules, doc.rules, 'loadLocal returns the cached doc');
 ok(P2.canSignIn() === false, 'no sign-in off-platform');
+eq(await P2.submitScore(12), { posted: false, rank: null }, 'no score post standalone');
 eq(quiet.length, 0, 'no fetch standalone');
 
 console.log(`platform: ${passed} assertions passed`);

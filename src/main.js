@@ -214,6 +214,7 @@ function startGame() {
   startedOnce = true;
   rules.reset();
   wasOver = false;
+  if (elResultsLb) elResultsLb.hidden = true;
   paused = false;
   T.setTickEnabled(true);
   showScreen('game');
@@ -246,6 +247,21 @@ if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => showScree
 if (elBtnGuessSubmit) elBtnGuessSubmit.addEventListener('click', onGuessSubmit);
 if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (Platform.actionFor(e.code) === 'submit') onGuessSubmit(); });
 
+// Signed in: every finished game posts its solved-word count to the platform
+// board; the results screen shows the rank. Standalone shows nothing.
+const elResultsLb = document.getElementById('results-lb');
+function postToLeaderboard(solved) {
+  if (!elResultsLb) return;
+  if (!Platform.isHosted()) { elResultsLb.hidden = true; return; }
+  const L = shStrings(Settings.getLocale());
+  elResultsLb.hidden = false;
+  elResultsLb.textContent = L.lbPosting;
+  Platform.submitScore(solved).then((r) => {
+    elResultsLb.textContent = !r.posted ? L.lbNotPosted
+      : r.rank ? L.lbRank.replace('{rank}', r.rank) : L.lbPosted;
+  });
+}
+
 // game-over jingle, whichever path (guess or timer) ended the game
 let wasOver = false;
 function watchGameOver() {
@@ -258,6 +274,7 @@ function watchGameOver() {
     if (solved > results.bestSolved) results.bestSolved = solved;
     persist();
     Sfx.play(rules.winReason === 'time-expired' ? 'game-over-time' : 'game-over-win');
+    postToLeaderboard(solved);
     if (screenName === 'game') showResults();
   }
   wasOver = rules.over;

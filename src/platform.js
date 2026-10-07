@@ -101,6 +101,20 @@ export function actionFor(code) {
   return null;
 }
 
+// Signed in: post a finished game's solved-word count to the words-solved board
+// (score-script.js). Resolves { posted, rank }. Standalone: no request.
+export async function submitScore(solved) {
+  const sh = SH();
+  if (!sh || !isHosted()) return { posted: false, rank: null };
+  const keys = await sh.submitScores({ 'words-solved': solved }).catch(() => []);
+  if (keys.indexOf('words-solved') < 0) return { posted: false, rank: null };
+  try {
+    const r = await sh.leaderboard('words-solved', { pageSize: 100 });
+    const me = (r.items || []).find((i) => i.userId === sh.userId);
+    return { posted: true, rank: me ? me.rank : null };
+  } catch { return { posted: true, rank: null }; }
+}
+
 export function isHosted() { const sh = SH(); return !!(sh && sh.signedIn); }
 export function canSignIn() { const sh = SH(); return !!(sh && sh.canSignIn()); }
 export function signIn() { const sh = SH(); return !!(sh && sh.signIn()); }
