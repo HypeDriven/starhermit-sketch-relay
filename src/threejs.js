@@ -700,8 +700,8 @@ function frame(ts) {
   if (adapt(dtMs) || Math.abs(currentRatio() - pixelRatio) > 1e-6) { applySize(); notify(); }
   const key = q.post && !postFailed ? [q.ao, q.bloom, q.grade, q.antialias, size[0], size[1], pixelRatio].join('|') : 'none';
   if (key !== postKey) { postKey = key; buildPost(); }
-  if (composer) composer.render(dtMs / 1000);
-  else renderer.render(scene, camera);
+  if (composer) (globalThis.GameOptions ? globalThis.GameOptions.draw(composer.renderer, () => composer.render(dtMs / 1000)) : composer.render(dtMs / 1000));
+  else (globalThis.GameOptions ? globalThis.GameOptions.draw(renderer, () => renderer.render(scene, camera)) : renderer.render(scene, camera));
 }
 
 export function resize(w, h, dpr) {

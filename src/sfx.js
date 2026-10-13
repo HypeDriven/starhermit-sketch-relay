@@ -80,7 +80,7 @@ function load(name) {
 }
 
 function startBuffer(buf) {
-  const src = ctx.createBufferSource();
+  const src = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(ctx.createBufferSource(), null) : ctx.createBufferSource());
   src.buffer = buf;
   src.connect(fxBus);
   src.start();
@@ -90,7 +90,7 @@ function startBuffer(buf) {
 
 function tone(f0, f1, dur, type, gain, delay) {
   const t0 = ctx.currentTime + (delay || 0);
-  const osc = ctx.createOscillator();
+  const osc = (globalThis.GameOptions ? globalThis.GameOptions.trackSource(ctx.createOscillator(), null) : ctx.createOscillator());
   const g = ctx.createGain();
   osc.type = type || 'sine';
   osc.frequency.setValueAtTime(f0, t0);
