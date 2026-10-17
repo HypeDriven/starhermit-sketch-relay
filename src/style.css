@@ -125,3 +125,12 @@ html, body {
 /* ---------- large screens: shared ui-scale.js sets --ui-scale (1 up to 1600x1000).
    Every DOM layer above the full-viewport 3D canvas is zoomed once; the canvas is not. */
 #app > :not(#scene-canvas), body > #fps-meter { zoom: var(--ui-scale, 1); }
+
+/* narrow phones: the localized HUD keeps the Pause button on screen */
+@media (max-width: 520px) {
+  .hud-bar { gap: 8px; }
+  .hud-bar .hud-item:not(:empty) { padding: 6px 8px; }
+  .hud-item { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #hud-top #btn-pause { flex: 0 0 auto; }
+  .hud-status { white-space: normal; text-align: center; }
+}

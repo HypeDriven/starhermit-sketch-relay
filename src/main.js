@@ -1,10 +1,13 @@
 // Sketch Relay — application entry: game state, input, DOM UI.
 import { Rules } from './rules.js';
-import * as T from './threejs.js';
+import * as Scene from './threejs.js';
 import * as Sfx from './sfx.js';
 import * as Platform from './platform.js';
 import * as Settings from './settings.js';
 import { shStrings } from './sh-strings.js';
+import { T, N, getLang, onLanguage, initLanguage } from './i18n.js';
+import { SAVE_VERSION, mergeDocs } from './save-merge.js';
+import { canonicalGuess } from './prompts.js';
 
 let rules;                  // Rules instance, created at module init below
 let screenName = 'title';   // 'title' | 'game'
@@ -42,9 +45,9 @@ const elApp = document.getElementById('app');
 // local personal records. localStorage is the offline cache; when hosted the
 // same doc is mirrored to the platform cloud-save slot (see platform.js).
 
-const SAVE_VERSION = 1;
 let results = { games: 0, wins: 0, bestSolved: 0, totalSolved: 0 };
 let startedOnce = false;   // a Play click this session: don't clobber with cloud
+let localSavedAt = 0;      // savedAt of this device's last saved doc
 
 function currentDoc() {
   return { v: SAVE_VERSION, savedAt: Date.now(), rules: rules.serialize(), results: Object.assign({}, results) };
@@ -58,30 +61,46 @@ function applyResults(docResults) {
 // Restore a save doc. Returns true when a live (not over) round came with it.
 function applyDoc(doc) {
   if (!doc || doc.v !== SAVE_VERSION) return false;
+  localSavedAt = Number(doc.savedAt) || 0;
   applyResults(doc.results);
   if (!doc.rules || doc.rules.over) return false;
   rules = Rules.deserialize(doc.rules);
-  T.setRules(rules);
+  Scene.setRules(rules);
   return true;
 }
 
 function persist() {
-  Platform.save(currentDoc());
+  const doc = currentDoc();
+  localSavedAt = doc.savedAt;
+  Platform.save(doc);
   updateResume();
 }
 
-// Remote doc arrived after boot: remote wins on a conflict unless the player
-// already started a round this session; records merge by the fuller history.
+// Cloud doc arrived (boot, or a save conflict with another device): merge it
+// with this device's doc (save-merge.js). Records keep the larger value; the
+// round is this device's when the player started one here this session or
+// its save is newer, otherwise the cloud's.
 function mergeRemoteDoc(cloud) {
   if (!cloud || cloud.v !== SAVE_VERSION) return;
-  if (!startedOnce && screenName === 'title') {
+  const local = Object.assign(currentDoc(), { savedAt: localSavedAt });
+  const keepLocalRound = startedOnce || screenName !== 'title';
+  const merged = mergeDocs(cloud, local, { keepLocalRound });
+  applyResults(merged.results);
+  if (!keepLocalRound && merged.rules !== local.rules) {
     // No live round in the cloud means it ended (or never existed) elsewhere:
     // drop the stale local round too, or the persist() below would push it back.
-    if (!applyDoc(cloud)) { rules = new Rules(); T.setRules(rules); }
+    if (!merged.rules || merged.rules.over) { rules = new Rules(); Scene.setRules(rules); }
+    else { rules = Rules.deserialize(merged.rules); Scene.setRules(rules); }
     setHud(); updatePromptPanel(); updateGuessPanel();
-  } else if (cloud.results && cloud.results.games > results.games) {
-    applyResults(cloud.results);
   }
+}
+
+// Another device saved first: reload the cloud copy, merge, save the merge.
+async function resolveSaveConflict() {
+  const cloud = await Platform.loadCloud();
+  if (cloud) mergeRemoteDoc(cloud);
+  persist();
+  updateStatus();
 }
 
 function roundInProgress() {
@@ -97,12 +116,12 @@ function updateResume() {
 
 // --- platform status line (title + in-game HUD) -------------------------------
 
-const SYNC_LABEL = { synced: 'synced', saving: 'saving…', error: 'error (retrying)', offline: 'offline' };
+const SYNC_LABEL = { synced: N('synced'), saving: N('saving…'), error: N('error (retrying)'), offline: N('offline') };
 
 function updateStatus() {
   const text = Platform.isHosted()
-    ? 'Playing as ' + (Platform.getNickname() || '…') + ' · Cloud save: ' + (SYNC_LABEL[Platform.getStatus()] || Platform.getStatus())
-    : 'Local play — progress is saved on this device';
+    ? T('Playing as {name} · Cloud save: {status}', { name: Platform.getNickname() || '…', status: T(SYNC_LABEL[Platform.getStatus()] || Platform.getStatus()) })
+    : T('Local play — progress is saved on this device');
   if (elPlatformStatus) elPlatformStatus.textContent = text;
   if (elHudStatus) elHudStatus.textContent = text;
   updateAccountButtons();
@@ -124,21 +143,26 @@ function updateAccountButtons() {
   if (elBtnSignIn) elBtnSignIn.hidden = !Platform.canSignIn();
   if (elBtnInvite) elBtnInvite.hidden = !Platform.inviteLink();
 }
+function labelAccountButtons() {
+  const L = shStrings(getLang());
+  if (elBtnSignIn) elBtnSignIn.textContent = L.signIn;
+  if (elBtnInvite) elBtnInvite.textContent = L.invite;
+}
 function initAccountButtons() {
-  const L = shStrings(Settings.getLocale());
-  if (elBtnSignIn) { elBtnSignIn.textContent = L.signIn; elBtnSignIn.addEventListener('click', () => Platform.signIn()); }
+  labelAccountButtons();
+  if (elBtnSignIn) elBtnSignIn.addEventListener('click', () => Platform.signIn());
   if (elBtnInvite) {
-    elBtnInvite.textContent = L.invite;
     elBtnInvite.addEventListener('click', async () => {
       const link = Platform.inviteLink();
       if (!link) return;
+      const L = shStrings(getLang());
       try { await navigator.clipboard.writeText(link); toast(L.copied); }
       catch { toast(L.copyFailed + ': ' + link); }
     });
   }
   let wasHosted = false;
   Platform.onChange(() => {
-    if (wasHosted && !Platform.isHosted()) toast(L.signedOut);
+    if (wasHosted && !Platform.isHosted()) toast(shStrings(getLang()).signedOut);
     wasHosted = Platform.isHosted();
   });
 }
@@ -153,21 +177,21 @@ function showScreen(name) {
   elScreenGame.hidden = name !== 'game';
   elScreenResults.hidden = name !== 'results';
   if (name !== 'game') elScreenPause.hidden = true;
-  T.setTickEnabled(name === 'game' && !paused);
+  Scene.setTickEnabled(name === 'game' && !paused);
 }
 
 function setHud() {
   const r = rules;
   if (!r) return;
-  elHudRound.textContent = 'Artist: ' + r.artistName;
-  elHudTimer.textContent = 'Time left: ' + String(r.secondsLeft) + 's';
+  elHudRound.textContent = T('Artist: {name}', { name: r.artistName });
+  elHudTimer.textContent = T('Time left: {n}s', { n: r.secondsLeft });
 }
 
 function updatePromptPanel() {
   const w = rules.currentWord;
   if (!w) { elPromptPanel.hidden = true; return; }
   elPromptPanel.hidden = false;
-  elPromptWord.textContent = w;
+  elPromptWord.textContent = T(w); // prompts are shown (and may be typed) in the game language
 }
 
 function updateGuessPanel() {
@@ -175,9 +199,17 @@ function updateGuessPanel() {
   elGuessPanel.hidden = false;
 }
 
+// Guess feedback is kept as key + vars so a language switch re-renders it.
+let feedback = null;
+function setFeedback(key, vars) {
+  feedback = key ? { key, vars } : null;
+  if (elGuessFeedback) elGuessFeedback.textContent = feedback ? T(key, vars) : '';
+}
+
 function onGuessSubmit() {
   if (screenName !== 'game' || paused || !rules || rules.over) return;
-  const v = elGuessInput.value;
+  const v = canonicalGuess(elGuessInput.value, rules.currentWord);
+  const typed = String(elGuessInput.value).trim();
   elGuessInput.value = '';
   if (String(v).trim() !== '') Sfx.play('guess-submit');
   const seatBefore = rules.seat, wiBefore = rules.wordIndex;
@@ -185,11 +217,9 @@ function onGuessSubmit() {
   rules.submitGuess(v);
   const solvedAfter = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
   persist();
-  if (elGuessFeedback) {
-    if (String(v).trim() === '') elGuessFeedback.textContent = 'Type the prompt shown, then press Enter.';
-    else if (solvedAfter > solvedBefore) elGuessFeedback.textContent = 'Correct! Next prompt.';
-    else elGuessFeedback.textContent = 'Not quite — "' + String(v).trim() + '" is not the prompt. Try again.';
-  }
+  if (typed === '') setFeedback(N('Type the prompt shown, then press Enter.'));
+  else if (solvedAfter > solvedBefore) setFeedback(N('Correct! Next prompt.'));
+  else setFeedback(N('Not quite — “{guess}” is not the prompt. Try again.'), { guess: typed });
   if (solvedAfter > solvedBefore) {
     Sfx.play('guess-correct');
     if (!rules.over) {
@@ -215,33 +245,38 @@ function startGame() {
   rules.reset();
   wasOver = false;
   if (elResultsLb) elResultsLb.hidden = true;
+  lbState = null;
   paused = false;
-  T.setTickEnabled(true);
+  Scene.setTickEnabled(true);
   showScreen('game');
-  if (elGuessFeedback) elGuessFeedback.textContent = 'Type the prompt shown and press Enter.';
+  setFeedback(N('Type the prompt shown and press Enter.'));
   setHud(); updatePromptPanel(); updateGuessPanel();
   persist();
 }
-function showResults() {
+function renderResults() {
   const solved = rules.solvedWords.reduce((n, s) => n + (s ? 1 : 0), 0);
-  elResultsHeadline.textContent = rules.winReason === 'all-words-completed' ? 'All words completed!' : "Time's up!";
-  let body = 'Words solved: ' + solved + ' of ' + rules.solvedWords.length + ' · Guesses: ' + rules.guessCount;
-  if (results.games > 0) body += ' · Best round: ' + results.bestSolved + '/' + rules.solvedWords.length;
-  elResultsBody.textContent = body;
+  const total = rules.solvedWords.length;
+  elResultsHeadline.textContent = rules.winReason === 'all-words-completed' ? T('All words completed!') : T('Time’s up!');
+  const parts = [T('Words solved: {n} of {total}', { n: solved, total }), T('Guesses: {n}', { n: rules.guessCount })];
+  if (results.games > 0) parts.push(T('Best round: {best}/{total}', { best: results.bestSolved, total }));
+  elResultsBody.textContent = parts.join(' · ');
+}
+function showResults() {
+  renderResults();
   showScreen('results');
 }
 if (elBtnPlay) elBtnPlay.addEventListener('click', startGame);
 if (elBtnResumeRound) elBtnResumeRound.addEventListener('click', () => {
   if (!roundInProgress()) return;
   paused = false;
-  T.setTickEnabled(true);
+  Scene.setTickEnabled(true);
   showScreen('game');
   setHud(); updatePromptPanel(); updateGuessPanel();
   updateStatus();
   Sfx.play('game-start');
 });
-if (elBtnPause) elBtnPause.addEventListener('click', () => { paused = true; T.setTickEnabled(false); elScreenPause.hidden = false; });
-if (elBtnResume) elBtnResume.addEventListener('click', () => { paused = false; T.setTickEnabled(true); elScreenPause.hidden = true; });
+if (elBtnPause) elBtnPause.addEventListener('click', () => { paused = true; Scene.setTickEnabled(false); elScreenPause.hidden = false; });
+if (elBtnResume) elBtnResume.addEventListener('click', () => { paused = false; Scene.setTickEnabled(true); elScreenPause.hidden = true; });
 if (elBtnQuitToTitle) elBtnQuitToTitle.addEventListener('click', () => { paused = false; persist(); showScreen('title'); });
 if (elBtnBackToTitle) elBtnBackToTitle.addEventListener('click', () => showScreen('title'));
 if (elBtnGuessSubmit) elBtnGuessSubmit.addEventListener('click', onGuessSubmit);
@@ -250,17 +285,35 @@ if (elGuessInput) elGuessInput.addEventListener('keydown', (e) => { if (Platform
 // Signed in: every finished game posts its solved-word count to the platform
 // board; the results screen shows the rank. Standalone shows nothing.
 const elResultsLb = document.getElementById('results-lb');
+let lbState = null; // { posting } | { posted, rank } — re-rendered on a language switch
+function renderLeaderboard() {
+  if (!elResultsLb || !lbState) return;
+  const L = shStrings(getLang());
+  elResultsLb.textContent = lbState.posting ? L.lbPosting
+    : !lbState.posted ? L.lbNotPosted
+      : lbState.rank ? L.lbRank.replace('{rank}', lbState.rank) : L.lbPosted;
+}
 function postToLeaderboard(solved) {
   if (!elResultsLb) return;
-  if (!Platform.isHosted()) { elResultsLb.hidden = true; return; }
-  const L = shStrings(Settings.getLocale());
+  if (!Platform.isHosted()) { elResultsLb.hidden = true; lbState = null; return; }
   elResultsLb.hidden = false;
-  elResultsLb.textContent = L.lbPosting;
-  Platform.submitScore(solved).then((r) => {
-    elResultsLb.textContent = !r.posted ? L.lbNotPosted
-      : r.rank ? L.lbRank.replace('{rank}', r.rank) : L.lbPosted;
-  });
+  lbState = { posting: true };
+  renderLeaderboard();
+  Platform.submitScore(solved).then((r) => { lbState = r; renderLeaderboard(); });
 }
+
+// Language switch (Settings → Language, or the account preference arriving):
+// re-render every dynamic string in place; data-i18n markup is re-applied by i18n.js.
+function refreshLanguage() {
+  labelAccountButtons();
+  updateStatus();
+  setHud();
+  if (rules && rules.currentWord) elPromptWord.textContent = T(rules.currentWord);
+  if (feedback) setFeedback(feedback.key, feedback.vars);
+  if (rules && rules.over && !elScreenResults.hidden) renderResults();
+  renderLeaderboard();
+}
+onLanguage(refreshLanguage);
 
 // game-over jingle, whichever path (guess or timer) ended the game
 let wasOver = false;
@@ -289,7 +342,7 @@ if (typeof window !== 'undefined') window.setInterval(() => {
 
 function resizeCanvas() {
   if (!elCanvas) return;
-  T.resize(elCanvas.clientWidth, elCanvas.clientHeight, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+  Scene.resize(elCanvas.clientWidth, elCanvas.clientHeight, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('resize', resizeCanvas);
@@ -303,11 +356,12 @@ export function _debug() {
 }
 
 // module init (runs once at import)
+initLanguage();
 rules = new Rules();
 applyDoc(Platform.loadLocal());   // offline cache first; cloud may override below
-T.setRules(rules);
-T.setTickEnabled(false);
-T.init(elCanvas);
+Scene.setRules(rules);
+Scene.setTickEnabled(false);
+Scene.init(elCanvas);
 Settings.init();
 initAccountButtons();
 Settings.onCommit((graphics) => Platform.pushSettings({ graphics }));
@@ -317,9 +371,10 @@ updateResume();
 updateStatus();
 resizeCanvas();
 if (elScreenLoading) elScreenLoading.hidden = true;
-T.start();
+Scene.start();
 
-// hosted boot: remote save wins on conflict (unless a round already started here)
+// hosted boot: the cloud save is merged with this device's (see mergeRemoteDoc)
+Platform.onSaveConflict(resolveSaveConflict);
 Platform.init().then((res) => {
   if (res.hosted && res.cloud) {
     mergeRemoteDoc(res.cloud);
@@ -340,7 +395,7 @@ if (typeof window !== 'undefined') {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    if (screenName === 'game' && !rules.over) { paused = true; T.setTickEnabled(false); elScreenPause.hidden = false; }
-    T.stop();
-  } else T.start();
+    if (screenName === 'game' && !rules.over) { paused = true; Scene.setTickEnabled(false); elScreenPause.hidden = false; }
+    Scene.stop();
+  } else Scene.start();
 });

@@ -13,6 +13,11 @@
  * so it is self-contained.
  *
  * Two passes: desktop 1280x800, then a fresh mobile context 390x844 w/ touch.
+ * Then a language pass per viewport, signed in through a stubbed StarHermit
+ * API: Automatic follows the account language (fr-CA), the French prompt is
+ * accepted when typed, switching to Italian mid-round (Settings from the
+ * pause menu) re-renders everything in place and saves ui.language, and
+ * Report a problem posts a report.
  * Any non-benign pageerror/console-error fails the run (exit 1).
  *
  * Run: npm run test:e2e
@@ -22,6 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { stubStarHermit, launchToken } from './starhermit-e2e.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SHOT = (stage, vp) => `/tmp/sketch-relay-e2e-${stage}-${vp}.png`;
@@ -220,6 +226,80 @@ async function playthrough(page, vp, errors) {
   if (bad.length) throw new Error(`[${vp}] page errors:\n` + bad.join('\n'));
 }
 
+// ---------- language + report (signed in through a stubbed StarHermit API) ----------
+async function languagePass(browser, base, vp, ctxOpts, touch) {
+  const ctx = await browser.newContext(ctxOpts);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !browserNoise.test(m.text())) errors.push(`console ${m.type()}: ${m.text()}`); });
+  const press = (sel) => (touch ? page.tap(sel) : page.click(sel));
+  const text = async (sel) => ((await page.textContent(sel)) || '').trim();
+  try {
+    const calls = await stubStarHermit(page, { preferredLanguage: 'fr-CA' });
+    await page.goto('about:blank');
+    await page.goto(`${base}index.html#game_token=${launchToken()}`, { waitUntil: 'load' });
+    await page.waitForSelector('#screen-title:not([hidden])', { timeout: 10000 });
+    await page.waitForFunction(() => document.documentElement.lang === 'fr-CA', null, { timeout: 10000 });
+    if (await text('#btn-play') !== 'Jouer') throw new Error('title not in French: ' + await text('#btn-play'));
+    await press('#btn-play');
+    await page.waitForSelector('#prompt-panel:not([hidden])');
+    if (await text('#hud-round') !== 'Artiste : Aiko') throw new Error('HUD not in French: ' + await text('#hud-round'));
+    if (await text('#prompt-word') !== 'pomme') throw new Error('prompt not in French: ' + await text('#prompt-word'));
+    await page.fill('#guess-input', 'Pomme');
+    await press('#btn-guess-submit');
+    await page.waitForFunction(() => document.querySelector('#prompt-word').textContent.trim() === 'pont');
+    if (await text('#guess-feedback') !== 'Exact ! Mot suivant.') throw new Error('feedback not in French');
+    await press('#btn-pause');
+    await page.waitForSelector('#screen-pause:not([hidden])');
+    await press('#btn-pause-settings');
+    await page.waitForSelector('#screen-settings:not([hidden])');
+    const choice = page.locator('#screen-settings [data-game-language="choice"]');
+    await choice.scrollIntoViewIfNeeded();
+    const auto = ((await choice.locator('option').first().textContent()) || '').trim();
+    if (auto !== 'Automatique — Français (Canada)') throw new Error(`Automatic label not resolved: ${auto}`);
+    await choice.selectOption('it-IT');
+    await page.waitForFunction(() => document.documentElement.lang === 'it-IT');
+    await page.waitForFunction(() => /Salvato/.test(document.querySelector('[data-game-language="status"]').textContent));
+    if (calls.settings['ui.language']?.choice !== 'it-IT') throw new Error('ui.language not saved: ' + JSON.stringify(calls.settings));
+    if (await text('#settings-title') !== 'Impostazioni') throw new Error('settings title not re-rendered');
+    if (await text('label[for="gfx-preset"]') !== 'Qualità') throw new Error('graphics form not re-rendered');
+    if (await text('#hud-round') !== 'Artista: Aiko') throw new Error('HUD not re-rendered');
+    if (await text('#prompt-word') !== 'ponte') throw new Error('prompt not re-rendered');
+    if (await text('#guess-feedback') !== 'Esatto! Parola successiva.') throw new Error('feedback not re-rendered');
+    if (await text('#pause-title') !== 'In pausa') throw new Error('pause menu not re-rendered');
+    const title = page.locator('[data-game-report="title"]');
+    await title.scrollIntoViewIfNeeded();
+    await title.fill('Test report');
+    await page.locator('[data-game-report="send"]').scrollIntoViewIfNeeded();
+    await press('[data-game-report="send"]');
+    await page.waitForFunction(() => /Grazie/.test(document.querySelector('[data-game-report="status"]').textContent));
+    if (!calls.reports?.[0] || calls.reports[0].kind !== 'bug') throw new Error('report not posted');
+    const vw = page.viewportSize().width;
+    for (const sel of ['[data-game-language="choice"]', '[data-game-report="send"]', '#gfx-preset']) {
+      const b = await page.locator(sel).first().boundingBox();
+      if (!b || b.x < 0 || b.x + b.width > vw + 1) throw new Error(`${sel} cut off horizontally`);
+    }
+    const sx = await page.evaluate(() => { const p = document.querySelector('.settings-panel'); return p.scrollWidth - p.clientWidth; });
+    if (sx > 0) throw new Error('settings panel scrolls sideways');
+    await page.screenshot({ path: SHOT('language', vp) });
+    await choice.selectOption('auto');
+    await page.waitForFunction(() => document.documentElement.lang === 'fr-CA');
+    await page.locator('#btn-settings-close').scrollIntoViewIfNeeded();
+    await press('#btn-settings-close');
+    await page.waitForSelector('#screen-settings', { state: 'hidden' });
+    if (await text('#btn-resume') !== 'Reprendre') throw new Error('pause menu not in French');
+    await press('#btn-resume');
+    await page.waitForSelector('#screen-pause', { state: 'hidden' });
+    if (await text('#prompt-word') !== 'pont') throw new Error('prompt not back in French');
+    await page.unroute(/\/api\/v1\//);
+  } finally {
+    await ctx.close();
+  }
+  if (errors.length) throw new Error(`[${vp}] language pass had console output:\n  ${errors.join('\n  ')}`);
+  console.log(`ok - [${vp}] language: Automatic → fr-CA, French prompt accepted, Italian mid-round re-renders HUD/prompt/pause/settings, ui.language saved, report posted`);
+}
+
 const server = await startServer();
 const base = `http://127.0.0.1:${server.address().port}/`;
 let browser = null;
@@ -262,6 +342,9 @@ try {
       await ctx.close();
     }
   }
+
+  await languagePass(browser, base, 'desktop', { viewport: { width: 1280, height: 800 } }, false);
+  await languagePass(browser, base, 'mobile', { viewport: { width: 390, height: 844 }, hasTouch: true }, true);
 
   const bad = allErrors.filter((e) => !browserNoise.test(e));
   if (bad.length) {

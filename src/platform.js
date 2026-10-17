@@ -4,6 +4,8 @@
 // sign-in and invite link. Without a token the module is inert: the game stays
 // fully local, localStorage is the only store, and no network call is made.
 
+import { T } from './i18n.js';
+
 const LOCAL_KEY = 'sketchrelay.save.v1';
 
 // Keyboard actions; mirrors the control.* lines in starhermit.txt.
@@ -19,6 +21,7 @@ let status = 'offline'; // offline | saving | synced | error
 let controls = cloneControls(DEFAULT_CONTROLS);
 let wired = false;
 const listeners = new Set();
+let conflictHandler = null;
 
 function cloneControls(c) {
   const out = {};
@@ -30,7 +33,7 @@ function setStatus(s) { if (status !== s) { status = s; emit(); } }
 
 async function loadProfile() {
   const p = await SH().profile().catch(() => null);
-  nickname = p ? p.displayName : 'Player ' + String(SH().userId).slice(0, 6);
+  nickname = p ? p.displayName : T('Player {id}', { id: String(SH().userId).slice(0, 6) });
   emit();
 }
 
@@ -72,7 +75,9 @@ export async function init() {
   if (!sh.token) sh.init();
   if (!wired) {
     wired = true;
-    sh.on('saved', (ok) => setStatus(ok ? 'synced' : 'error'));
+    sh.on('saved', (ok) => { if (!(ok === false && sh.saveConflicted && sh.saveConflicted())) setStatus(ok ? 'synced' : 'error'); });
+    // Another device saved first (412): the game reloads, merges and saves again.
+    sh.on('saveconflict', () => { setStatus('saving'); if (conflictHandler) conflictHandler(); });
     sh.on('auth', (a) => { if (!a.signedIn) { nickname = null; status = 'offline'; emit(); } });
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('pagehide', () => { flush(); });
@@ -88,6 +93,11 @@ export async function init() {
   controls = await sh.loadBindings(DEFAULT_CONTROLS).catch(() => controls);
   return { hosted: true, cloud };
 }
+
+/** Register the handler for a cloud-save conflict (another device saved first). */
+export function onSaveConflict(fn) { conflictHandler = fn; }
+/** Re-read the cloud save (null when none / standalone); clears a conflict. */
+export function loadCloud() { return isHosted() ? SH().loadJSON().catch(() => null) : Promise.resolve(null); }
 
 // --- settings KV ----------------------------------------------------------------
 /** The player's platform settings ({} when none / standalone). */

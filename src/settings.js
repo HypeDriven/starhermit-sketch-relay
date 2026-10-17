@@ -2,8 +2,12 @@
 // Opened from the title menu and the pause overlay. Every change applies live
 // through threejs.setGraphics() and persists in localStorage under its own key.
 // The panel's strings are localized (en-US, en-GB, es-419, es-ES, de-DE,
-// fr-FR, fr-CA, pt-BR, it-IT); locale comes from ?lang= or navigator.languages.
+// fr-FR, fr-CA, pt-BR, it-IT) and follow the game language (i18n.js); a
+// language switch relabels the panel in place. The shared Language, Sound and
+// Report sections (game-options.js) mount after the Graphics form inside the
+// panel ([data-options-graphics]); only #gfx-form is ever rebuilt here.
 import * as T from './threejs.js';
+import { getLang, onLanguage } from './i18n.js';
 import { actionFor } from './platform.js';
 import { PRESETS, CATEGORIES, presetTier, choosePreset, SHADOW_MAP, PARTICLE_COUNT } from './gfx.js';
 
@@ -115,12 +119,6 @@ export function pickLocale(tags) {
   return 'en-US';
 }
 
-function detectLocale() {
-  const tags = [];
-  try { const q = new URLSearchParams(location.search).get('lang'); if (q) tags.push(q); } catch (_) { /* no location */ }
-  if (typeof navigator !== 'undefined') tags.push(...(navigator.languages || []), navigator.language);
-  return pickLocale(tags);
-}
 
 // ---------------------------------------------------------------- persistence
 
@@ -252,8 +250,22 @@ export function applySaved(obj) {
   refresh();
 }
 
-/** The UI locale picked at init. */
+/** The current UI locale (the game language). */
 export function getLocale() { return locale; }
+
+/** Re-label the panel and its opener buttons for the current game language. */
+function relabel() {
+  locale = STRINGS[getLang()] ? getLang() : 'en-US';
+  S = STRINGS[locale];
+  for (const id of ['btn-settings', 'btn-pause-settings']) { const b = $(id); if (b) b.textContent = S.settings; }
+  $('settings-title').textContent = S.settings;
+  $('gfx-heading').textContent = S.graphics;
+  $('btn-settings-close').textContent = S.close;
+  const focused = document.activeElement && document.activeElement.id;
+  buildForm();
+  refresh();
+  if (focused && focused.startsWith('gfx-') && $(focused)) $(focused).focus();
+}
 
 export function open(from) {
   opener = from || document.activeElement;
@@ -271,19 +283,19 @@ export function close() {
 export function isOpen() { return !!$('screen-settings') && !$('screen-settings').hidden; }
 
 export function init() {
-  locale = detectLocale();
+  locale = STRINGS[getLang()] ? getLang() : 'en-US';
   S = STRINGS[locale];
   saved = loadSaved();
   const panel = $('screen-settings');
-  if (panel) panel.setAttribute('lang', locale);
   for (const id of ['btn-settings', 'btn-pause-settings']) {
     const b = $(id);
-    if (b) { b.textContent = S.settings; b.setAttribute('lang', locale); b.addEventListener('click', () => open(b)); }
+    if (b) { b.textContent = S.settings; b.addEventListener('click', () => open(b)); }
   }
   $('settings-title').textContent = S.settings;
   $('gfx-heading').textContent = S.graphics;
   $('btn-settings-close').textContent = S.close;
   $('btn-settings-close').addEventListener('click', close);
+  onLanguage(relabel);
   panel.addEventListener('click', (e) => { if (e.target === panel) close(); });
   document.addEventListener('keydown', (e) => {
     if (actionFor(e.code) === 'back' && isOpen()) { e.preventDefault(); e.stopPropagation(); close(); }

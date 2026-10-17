@@ -11,6 +11,7 @@ new Function('module', readFileSync(new URL('../starhermit-sdk.js', import.meta.
 const SDK = sdkModule.exports;
 
 const USER = 'u1234abcd-xyz';
+const SIGNIN_HOST = '0b9d6f2e-3c4a-4e5b-9a7c-1d2e3f405162.starhermit.com';
 const SLUG = 'sketch-relay-test';
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const JWT = b64u({ alg: 'none' }) + '.' + b64u({ sub: USER, game_scope: SLUG, exp: Math.floor(Date.now() / 1000) + 3600 }) + '.';
@@ -40,14 +41,24 @@ function res(status, body) {
 }
 const calls = [];
 let cloudZip = null;
+let cloudVer = 0;
 const settings = {};
 async function fetchStub(url, opts = {}) {
   const method = opts.method || 'GET';
   calls.push({ url, method, headers: opts.headers || {}, body: opts.body, keepalive: opts.keepalive });
   const path = url.split('?')[0];
   if (path === `/api/v1/users/${USER}/profile`) return res(200, { username: 'hermit_ana', nickname: 'Hermit Ana' });
-  if (path === '/api/v1/me/cloud-saves/' + encodeURIComponent('game:' + SLUG)) {
-    if (method === 'PUT') { cloudZip = Buffer.from(JSON.parse(opts.body).dataBase64, 'base64'); return res(204); }
+  const slot = '/api/v1/me/cloud-saves/' + encodeURIComponent('game:' + SLUG);
+  if (path === slot + '/info') return res(200, cloudZip ? { exists: true, etag: 'v' + cloudVer } : { exists: false });
+  if (path === slot) {
+    if (method === 'PUT') {
+      const h = opts.headers || {};
+      const cur = cloudZip ? 'v' + cloudVer : null;
+      if ((h['If-Match'] && h['If-Match'] !== cur) || (h['If-None-Match'] === '*' && cur)) return res(412, { etag: cur });
+      cloudZip = Buffer.from(JSON.parse(opts.body).dataBase64, 'base64');
+      cloudVer++;
+      return res(200, { etag: 'v' + cloudVer });
+    }
     return cloudZip ? res(200, new Uint8Array(cloudZip)) : res(404);
   }
   if (path === `/api/v1/games/${SLUG}/settings`) {
@@ -91,6 +102,25 @@ ok(put.keepalive === true, 'flush uses keepalive');
 const back = await globalThis.StarHermit.loadJSON();
 eq(back.results, doc.results, 'cloud round-trip');
 
+// another device saves first: this device's next write is refused (412),
+// surfaced through onSaveConflict, and a reload + save goes through again
+const other = SDK.create({ window: { location: { hash: '#game_token=' + JWT, search: '', pathname: '/', hostname: 'localhost', href: 'http://localhost/' }, history: { replaceState() {} } }, fetch: fetchStub, setTimeout: () => 0, clearTimeout() {} });
+other.init();
+await other.loadJSON();
+await other.writeSave(JSON.stringify({ v: 1, rules: {}, results: { games: 9, wins: 0, bestSolved: 0, totalSolved: 0 } }));
+let conflicts = 0;
+P.onSaveConflict(() => { conflicts++; });
+P.save(doc);
+await P.flush();
+eq(conflicts, 1, 'saveconflict reaches the game');
+eq(P.getStatus(), 'saving', 'conflict is not shown as an error');
+const theirs = await P.loadCloud();
+eq(theirs.results.games, 9, 'reload sees the other device');
+P.save(Object.assign({}, doc, { results: { games: 9, wins: 1, bestSolved: 20, totalSolved: 41 } }));
+await P.flush();
+eq(P.getStatus(), 'synced', 'merged save goes through after the reload');
+eq((await other.loadJSON()).results.wins, 1, 'merged save landed');
+
 P.pushSettings({ graphics: { preset: 'low' } });
 await new Promise((res) => setTimeout(res, 0));
 eq(settings.graphics, { preset: 'low' }, 'settings PATCH');
@@ -121,6 +151,14 @@ eq(P2.loadLocal().rules, doc.rules, 'loadLocal returns the cached doc');
 ok(P2.canSignIn() === false, 'no sign-in off-platform');
 eq(await P2.submitScore(12), { posted: false, rank: null }, 'no score post standalone');
 eq(quiet.length, 0, 'no fetch standalone');
+
+// on the game's own <uuid>.starhermit.com host without a token: sign-in offered
+globalThis.StarHermit = SDK.create({
+  window: { location: { hash: '', search: '', pathname: '/', hostname: SIGNIN_HOST, href: 'https://' + SIGNIN_HOST + '/' }, history: { replaceState() {} } },
+  fetch: async () => res(500),
+});
+globalThis.StarHermit.init();
+ok(P2.canSignIn() === true, 'sign-in offered on <uuid>.starhermit.com');
 
 console.log(`platform: ${passed} assertions passed`);
 process.exit(0);
