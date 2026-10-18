@@ -111,6 +111,7 @@ async function playthrough(page, vp, errors) {
     if (a.preset !== 'high') throw new Error('high not applied: ' + JSON.stringify(a));
     let summary = await page.textContent('#gfx-summary');
     if (!/Shadows 2048²/.test(summary) || !/SMAA/.test(summary)) throw new Error('high summary: ' + summary);
+    if (!/ · Level 0 · /.test(summary)) throw new Error('summary lacks the hardware level: ' + summary);
     await page.selectOption('#gfx-shadows', 'off');
     summary = await page.textContent('#gfx-summary');
     if (/Shadows/.test(summary)) throw new Error('shadow override not applied: ' + summary);

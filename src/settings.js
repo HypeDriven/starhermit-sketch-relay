@@ -9,7 +9,7 @@
 import * as T from './threejs.js';
 import { getLang, onLanguage } from './i18n.js';
 import { actionFor } from './platform.js';
-import { PRESETS, CATEGORIES, presetTier, choosePreset, SHADOW_MAP, PARTICLE_COUNT } from './gfx.js';
+import { PRESETS, CATEGORIES, presetTier, choosePreset, SHADOW_MAP, particleCount } from './gfx.js';
 
 export const STORAGE_KEY = 'sketch-relay.graphics.v1';
 
@@ -18,7 +18,7 @@ const EN = {
   auto: 'Auto (detected: {tier})', fromPreset: 'From preset ({tier})', renderScale: 'Render scale',
   adaptive: 'Adaptive resolution', showFps: 'Show frame rate',
   postFailed: 'Post-processing is unavailable here, so the game renders without it.',
-  noWebgl: '3D view unavailable; graphics settings have no effect.', unknownGpu: 'unknown GPU',
+  noWebgl: '3D view unavailable; graphics settings have no effect.', unknownGpu: 'unknown GPU', level: 'Level {n}',
   preset: { low: 'Low', balanced: 'Balanced', high: 'High', ultra: 'Ultra' },
   cat: { shadows: 'Shadows', ao: 'Ambient occlusion', bloom: 'Bloom', grade: 'Color grade', antialias: 'Anti-aliasing', particles: 'Dust particles', detail: 'Studio detail' },
   tier: { off: 'Off', on: 'On', low: 'Low', medium: 'Medium', high: 'High', plain: 'Plain', detailed: 'Detailed', particles: 'particles' },
@@ -34,7 +34,7 @@ export const STRINGS = {
     auto: 'Automática (detectada: {tier})', fromPreset: 'Del preajuste ({tier})', renderScale: 'Escala de renderizado',
     adaptive: 'Resolución adaptativa', showFps: 'Mostrar fotogramas por segundo',
     postFailed: 'El posprocesamiento no está disponible aquí; el juego se muestra sin él.',
-    noWebgl: 'Vista 3D no disponible; la configuración gráfica no tiene efecto.', unknownGpu: 'GPU desconocida',
+    noWebgl: 'Vista 3D no disponible; la configuración gráfica no tiene efecto.', unknownGpu: 'GPU desconocida', level: 'Nivel {n}',
     preset: { low: 'Baja', balanced: 'Equilibrada', high: 'Alta', ultra: 'Ultra' },
     cat: { shadows: 'Sombras', ao: 'Oclusión ambiental', bloom: 'Resplandor', grade: 'Corrección de color', antialias: 'Antialiasing', particles: 'Partículas de polvo', detail: 'Detalle del estudio' },
     tier: { off: 'Desactivado', on: 'Activado', low: 'Bajo', medium: 'Medio', high: 'Alto', plain: 'Simple', detailed: 'Detallado', particles: 'partículas' },
@@ -44,7 +44,7 @@ export const STRINGS = {
     auto: 'Automática (detectada: {tier})', fromPreset: 'Del preajuste ({tier})', renderScale: 'Escala de renderizado',
     adaptive: 'Resolución adaptativa', showFps: 'Mostrar fotogramas por segundo',
     postFailed: 'El posprocesado no está disponible en este equipo; el juego se muestra sin él.',
-    noWebgl: 'Vista 3D no disponible; los ajustes gráficos no tienen efecto.', unknownGpu: 'GPU desconocida',
+    noWebgl: 'Vista 3D no disponible; los ajustes gráficos no tienen efecto.', unknownGpu: 'GPU desconocida', level: 'Nivel {n}',
     preset: { low: 'Baja', balanced: 'Equilibrada', high: 'Alta', ultra: 'Ultra' },
     cat: { shadows: 'Sombras', ao: 'Oclusión ambiental', bloom: 'Resplandor', grade: 'Corrección de color', antialias: 'Suavizado de bordes', particles: 'Partículas de polvo', detail: 'Detalle del estudio' },
     tier: { off: 'Desactivado', on: 'Activado', low: 'Bajo', medium: 'Medio', high: 'Alto', plain: 'Simple', detailed: 'Detallado', particles: 'partículas' },
@@ -54,7 +54,7 @@ export const STRINGS = {
     auto: 'Automatisch (erkannt: {tier})', fromPreset: 'Aus Voreinstellung ({tier})', renderScale: 'Renderskalierung',
     adaptive: 'Adaptive Auflösung', showFps: 'Bildrate anzeigen',
     postFailed: 'Nachbearbeitung ist hier nicht verfügbar, das Spiel wird ohne sie dargestellt.',
-    noWebgl: '3D-Ansicht nicht verfügbar; Grafikeinstellungen haben keine Wirkung.', unknownGpu: 'unbekannte GPU',
+    noWebgl: '3D-Ansicht nicht verfügbar; Grafikeinstellungen haben keine Wirkung.', unknownGpu: 'unbekannte GPU', level: 'Stufe {n}',
     preset: { low: 'Niedrig', balanced: 'Ausgewogen', high: 'Hoch', ultra: 'Ultra' },
     cat: { shadows: 'Schatten', ao: 'Umgebungsverdeckung', bloom: 'Bloom', grade: 'Farbkorrektur', antialias: 'Kantenglättung', particles: 'Staubpartikel', detail: 'Studiodetails' },
     tier: { off: 'Aus', on: 'An', low: 'Niedrig', medium: 'Mittel', high: 'Hoch', plain: 'Schlicht', detailed: 'Detailliert', particles: 'Partikel' },
@@ -64,7 +64,7 @@ export const STRINGS = {
     auto: 'Auto (détectée : {tier})', fromPreset: 'Selon le préréglage ({tier})', renderScale: 'Échelle de rendu',
     adaptive: 'Résolution adaptative', showFps: 'Afficher la fréquence d’images',
     postFailed: 'Le post-traitement n’est pas disponible ici ; le jeu s’affiche sans.',
-    noWebgl: 'Vue 3D indisponible ; les réglages graphiques sont sans effet.', unknownGpu: 'GPU inconnu',
+    noWebgl: 'Vue 3D indisponible ; les réglages graphiques sont sans effet.', unknownGpu: 'GPU inconnu', level: 'Niveau {n}',
     preset: { low: 'Faible', balanced: 'Équilibrée', high: 'Élevée', ultra: 'Ultra' },
     cat: { shadows: 'Ombres', ao: 'Occlusion ambiante', bloom: 'Halo lumineux', grade: 'Étalonnage des couleurs', antialias: 'Anticrénelage', particles: 'Particules de poussière', detail: 'Détails de l’atelier' },
     tier: { off: 'Désactivé', on: 'Activé', low: 'Faible', medium: 'Moyen', high: 'Élevé', plain: 'Simple', detailed: 'Détaillé', particles: 'particules' },
@@ -74,7 +74,7 @@ export const STRINGS = {
     auto: 'Auto (détectée : {tier})', fromPreset: 'Selon le préréglage ({tier})', renderScale: 'Échelle de rendu',
     adaptive: 'Résolution adaptative', showFps: 'Afficher la fréquence d’images',
     postFailed: 'Le post-traitement n’est pas offert ici ; le jeu s’affiche sans.',
-    noWebgl: 'Vue 3D non disponible ; les paramètres graphiques n’ont aucun effet.', unknownGpu: 'GPU inconnu',
+    noWebgl: 'Vue 3D non disponible ; les paramètres graphiques n’ont aucun effet.', unknownGpu: 'GPU inconnu', level: 'Niveau {n}',
     preset: { low: 'Faible', balanced: 'Équilibrée', high: 'Élevée', ultra: 'Ultra' },
     cat: { shadows: 'Ombres', ao: 'Occlusion ambiante', bloom: 'Éclat lumineux', grade: 'Correction des couleurs', antialias: 'Anticrénelage', particles: 'Particules de poussière', detail: 'Détails de l’atelier' },
     tier: { off: 'Désactivé', on: 'Activé', low: 'Faible', medium: 'Moyen', high: 'Élevé', plain: 'Simple', detailed: 'Détaillé', particles: 'particules' },
@@ -84,7 +84,7 @@ export const STRINGS = {
     auto: 'Automática (detectada: {tier})', fromPreset: 'Da predefinição ({tier})', renderScale: 'Escala de renderização',
     adaptive: 'Resolução adaptativa', showFps: 'Mostrar taxa de quadros',
     postFailed: 'O pós-processamento não está disponível aqui; o jogo é exibido sem ele.',
-    noWebgl: 'Visualização 3D indisponível; as configurações gráficas não têm efeito.', unknownGpu: 'GPU desconhecida',
+    noWebgl: 'Visualização 3D indisponível; as configurações gráficas não têm efeito.', unknownGpu: 'GPU desconhecida', level: 'Nível {n}',
     preset: { low: 'Baixa', balanced: 'Equilibrada', high: 'Alta', ultra: 'Ultra' },
     cat: { shadows: 'Sombras', ao: 'Oclusão ambiente', bloom: 'Brilho', grade: 'Correção de cor', antialias: 'Antisserrilhamento', particles: 'Partículas de poeira', detail: 'Detalhes do estúdio' },
     tier: { off: 'Desligado', on: 'Ligado', low: 'Baixo', medium: 'Médio', high: 'Alto', plain: 'Simples', detailed: 'Detalhado', particles: 'partículas' },
@@ -94,7 +94,7 @@ export const STRINGS = {
     auto: 'Automatica (rilevata: {tier})', fromPreset: 'Dal preset ({tier})', renderScale: 'Scala di rendering',
     adaptive: 'Risoluzione adattiva', showFps: 'Mostra frequenza fotogrammi',
     postFailed: 'La post-elaborazione non è disponibile qui; il gioco viene mostrato senza.',
-    noWebgl: 'Vista 3D non disponibile; le impostazioni grafiche non hanno effetto.', unknownGpu: 'GPU sconosciuta',
+    noWebgl: 'Vista 3D non disponibile; le impostazioni grafiche non hanno effetto.', unknownGpu: 'GPU sconosciuta', level: 'Livello {n}',
     preset: { low: 'Bassa', balanced: 'Bilanciata', high: 'Alta', ultra: 'Ultra' },
     cat: { shadows: 'Ombre', ao: 'Occlusione ambientale', bloom: 'Bagliore', grade: 'Correzione colore', antialias: 'Antialiasing', particles: 'Particelle di polvere', detail: 'Dettagli dello studio' },
     tier: { off: 'Disattivato', on: 'Attivato', low: 'Basso', medium: 'Medio', high: 'Alto', plain: 'Semplice', detailed: 'Dettagliato', particles: 'particelle' },
@@ -193,12 +193,13 @@ function buildForm() {
 function summaryText(info) {
   const r = info.resolved;
   const parts = [info.gpu === 'unknown GPU' ? S.unknownGpu : info.gpu];
+  if (Number.isFinite(info.level)) parts.push(S.level.replace('{n}', info.level));
   if (r.shadows !== 'off') parts.push(`${S.cat.shadows} ${SHADOW_MAP[r.shadows]}²`);
   if (r.ao !== 'off') parts.push(S.cat.ao);
   if (r.bloom === 'on') parts.push(S.cat.bloom);
   if (r.grade === 'on') parts.push(S.cat.grade);
   parts.push(r.antialias === 'off' ? `${S.cat.antialias}: ${S.tier.off}` : r.antialias.toUpperCase());
-  if (r.particles !== 'off') parts.push(`${PARTICLE_COUNT[r.particles]} ${S.tier.particles}`);
+  if (r.particles !== 'off') parts.push(`${particleCount(r)} ${S.tier.particles}`);
   parts.push(`${info.pixels[0]}×${info.pixels[1]} px`);
   return parts.join(' · ');
 }

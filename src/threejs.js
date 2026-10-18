@@ -14,7 +14,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ROSTER_SIZE, ROUND_SECONDS } from './rules.js';
-import { detectPreset, resolve, describe, SHADOW_MAP, PARTICLE_COUNT } from './gfx.js';
+import { detectLevel, presetForLevel, resolve, describe, SHADOW_MAP, particleCount, PARTICLE_MAX } from './gfx.js';
 
 export const C = {
   floor: '#2b3040', wall: '#8f97a6', panel: '#eef1f5', card: '#edf0f4',
@@ -44,7 +44,8 @@ let rulesRef = null;
 let tickEnabled = true;
 
 // graphics state
-let gpuName = '', detected = 'balanced', q = null;
+let gpuName = '', detected = 'balanced', level = 4, q = null;
+const physicalMats = [];     // { mesh, physical, standard }: clear-coated on High/Ultra, standard below
 let composer = null, postKey = null, postFailed = false, gradePass = null;
 let size = [1, 1], devicePR = 1, pixelRatio = 1, adaptiveScale = 1, frames = [], fps = 0;
 let reducedMotion = false, time = 0;
@@ -185,6 +186,25 @@ const GradeShader = {
 
 // ---------------------------------------------------------------- scene
 
+// Run a post pass at a fraction of the frame: EffectComposer.addPass / setSize resize every pass to the
+// full frame, so the pass's own setSize applies the scale (half-res bloom / GTAO below Ultra).
+function atScale(pass, k) {
+  if (!(k > 0 && k < 1)) return pass;
+  const setSize = pass.setSize.bind(pass);
+  pass.setSize = (w, h) => setSize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+  return pass;
+}
+
+// A clear-coated physical material with a plain standard twin; setGraphics picks one per the preset budget.
+function coated(mesh, opts) {
+  const { clearcoat, clearcoatRoughness, ...base } = opts;
+  const physical = new THREE.MeshPhysicalMaterial(opts);
+  const standard = new THREE.MeshStandardMaterial(base);
+  physicalMats.push({ mesh, physical, standard });
+  mesh.material = physical;
+  return mesh;
+}
+
 function std(color, extra) {
   return new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.8, metalness: 0 }, extra || {}));
 }
@@ -236,9 +256,8 @@ function buildRoom(rnd) {
   scene.add(frontWallMesh);
 
   // drawing panel on the back wall: a glossy whiteboard slab
-  const panelMat = new THREE.MeshPhysicalMaterial({ color: C.panel, roughness: 0.42, clearcoat: 0.7, clearcoatRoughness: 0.25 });
-  texturedMats.push({ mat: panelMat, map: boardMap, color: '#ffffff', plainColor: C.panel });
-  panelMesh = new THREE.Mesh(new THREE.BoxGeometry(9, 4.2, 0.08), panelMat);
+  panelMesh = coated(new THREE.Mesh(new THREE.BoxGeometry(9, 4.2, 0.08)), { color: C.panel, roughness: 0.42, clearcoat: 0.7, clearcoatRoughness: 0.25 });
+  for (const p of physicalMats) if (p.mesh === panelMesh) for (const mat of [p.physical, p.standard]) texturedMats.push({ mat, map: boardMap, color: '#ffffff', plainColor: C.panel });
   panelMesh.position.set(0, 3.6, -4.94);
   panelMesh.receiveShadow = true;
   scene.add(panelMesh);
@@ -254,7 +273,7 @@ function buildRoom(rnd) {
   scene.add(timerBarMesh);
 
   // word card (paper) pinned between the bar and the panel
-  wordCardMesh = new THREE.Mesh(new THREE.BoxGeometry(6.0, 2.6, 0.02), new THREE.MeshPhysicalMaterial({ color: C.card, roughness: 0.7, clearcoat: 0.3, clearcoatRoughness: 0.5 }));
+  wordCardMesh = coated(new THREE.Mesh(new THREE.BoxGeometry(6.0, 2.6, 0.02)), { color: C.card, roughness: 0.7, clearcoat: 0.3, clearcoatRoughness: 0.5 });
   wordCardMesh.position.set(0, 4.7, -4.88);
   wordCardMesh.castShadow = true;
   wordCardMesh.receiveShadow = true;
@@ -307,7 +326,7 @@ function buildProps(rnd) {
   box(2.6, 0.1, 0.5, wood, 7.0, 4.8, -4.72, detailGroup);
   const potGeo = new THREE.CylinderGeometry(0.16, 0.14, 0.34, 16);
   ['#cc4b37', '#3a6ea5', '#f7c948', '#4a8a5c'].forEach((col, i) => {
-    const p = new THREE.Mesh(potGeo, new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.3, clearcoat: 0.8 }));
+    const p = coated(new THREE.Mesh(potGeo), { color: col, roughness: 0.3, clearcoat: 0.8 });
     p.position.set(6.1 + i * 0.55, 3.52, -4.7);
     p.castShadow = true;
     detailGroup.add(p);
@@ -376,7 +395,7 @@ function buildPlayers(rnd) {
 }
 
 function buildParticles(rnd) {
-  const max = PARTICLE_COUNT.high;
+  const max = PARTICLE_MAX;
   const pos = new Float32Array(max * 3);
   particleSeed = new Float32Array(max * 2);
   for (let i = 0; i < max; i++) {
@@ -425,7 +444,12 @@ export function init(canvas) {
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   gpuName = readGpu(renderer.getContext());
-  detected = detectPreset(gpuName, isMobileDevice());
+  // StarHermit hardware level (gpu-level.js): this renderer's GPU string plus device facts
+  // (phone/tablet, cores, memory, screen) → level 0–20 → the Auto preset.
+  let system = { mobile: isMobileDevice() };
+  try { if (window.StarHermitGpu) system = window.StarHermitGpu.detectSystem(); } catch (_) { /* keep the fallback */ }
+  level = detectLevel(gpuName, { ...system, webgl: true, webgl2: true });
+  detected = presetForLevel(level);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#161922');
@@ -486,7 +510,7 @@ export function setReducedMotion(v) { reducedMotion = !!v; }
 
 /** Apply saved graphics settings ({} = Auto). Live: no reload needed. */
 export function setGraphics(saved) {
-  const g = resolve(saved || {}, detected);
+  const g = resolve(saved || {}, detected, level);
   q = g;
   qualityTier = g.preset;
   if (!renderer) { notify(); return g; }
@@ -498,14 +522,16 @@ export function setGraphics(saved) {
     if (keyLight.shadow.map) { keyLight.shadow.map.dispose(); keyLight.shadow.map = null; }
   }
   const detailed = g.detail === 'detailed';
+  for (const p of physicalMats) p.mesh.material = g.budget.material === 'physical' ? p.physical : p.standard;
   for (const t of texturedMats) {
+    if (t.map.anisotropy !== g.budget.anisotropy) { t.map.anisotropy = g.budget.anisotropy; t.map.needsUpdate = true; }
     t.mat.map = detailed ? t.map : null;
     t.mat.color.set(detailed ? t.color : t.plainColor);
   }
   if (detailGroup) detailGroup.visible = detailed;
   ambLight.intensity = detailed ? 0.25 : 0.55;
   if (particlePoints) {
-    const n = PARTICLE_COUNT[g.particles];
+    const n = Math.min(PARTICLE_MAX, particleCount(g));
     particlePoints.visible = n > 0;
     particlePoints.geometry.setDrawRange(0, n);
   }
@@ -529,10 +555,11 @@ function notify() { for (const fn of gfxListeners) { try { fn(); } catch (_) { /
 
 /** What the settings panel shows: GPU, auto choice, resolved tiers, cost summary. */
 export function graphicsInfo() {
-  const r = q || resolve({}, detected);
+  const r = q || resolve({}, detected, level);
   const px = [Math.round(size[0] * pixelRatio), Math.round(size[1] * pixelRatio)];
   return {
     gpu: gpuName || 'unknown GPU',
+    level,
     detected,
     resolved: r,
     summary: describe(r, px),
@@ -558,7 +585,7 @@ function fpsVisible(on) {
 }
 
 function currentRatio() {
-  const g = q || resolve({}, detected);
+  const g = q || resolve({}, detected, level);
   return Math.min(devicePR || 1, g.maxRatio) * g.scale * adaptiveScale;
 }
 
@@ -585,7 +612,7 @@ function buildPost() {
     c.setSize(w, h);
     c.addPass(new RenderPass(scene, camera));
     if (g.ao !== 'off') {
-      const ao = new GTAOPass(scene, camera, w * pixelRatio, h * pixelRatio);
+      const ao = atScale(new GTAOPass(scene, camera, w * pixelRatio, h * pixelRatio), g.budget.aoRes);
       ao.output = GTAOPass.OUTPUT.Default;
       ao.blendIntensity = 0.7;
       ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: g.ao === 'high' ? 16 : 8 });
@@ -593,7 +620,7 @@ function buildPost() {
       c.addPass(ao);
     }
     // high threshold: only lamp bulbs, the timer bar and the artist ring bloom
-    if (g.bloom === 'on') c.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.4, 0.92));
+    if (g.bloom === 'on') c.addPass(atScale(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.4, 0.92), g.budget.bloomRes));
     if (g.grade === 'on') { gradePass = new ShaderPass(GradeShader); c.addPass(gradePass); }
     c.addPass(new OutputPass());
     if (g.antialias === 'smaa') c.addPass(new SMAAPass());
