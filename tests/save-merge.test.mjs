@@ -27,3 +27,16 @@ test('invalid or missing docs fall back to the other side', () => {
   assert.equal(mergeDocs(local, null), local);
   assert.equal(mergeDocs(null, null), null);
 });
+
+// native/platform.ts migrateForeign: the browser build's cloud slot (the JS SDK's
+// saveJSON text of the same doc) merged into this device's first engine save.
+test('the old cloud slot migrates into a fresh engine save', () => {
+  const fresh = { v: 1, savedAt: 0, rules: null, results: { games: 0, wins: 0, bestSolved: 0, totalSolved: 0 } };
+  const oldText = JSON.stringify({ v: 1, savedAt: 1760000000000, rules: { v: 1, seat: 3, wordIndex: 1, elapsedMs: 1200, guessCount: 14, over: 0, winReason: '', correctBySeat: [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], solvedWords: '111111111' }, results: { games: 4, wins: 1, bestSolved: 36, totalSolved: 80 } });
+  const merged = mergeDocs(JSON.parse(oldText), fresh, { keepLocalRound: false });
+  assert.deepEqual(merged.results, { games: 4, wins: 1, bestSolved: 36, totalSolved: 80 });
+  assert.equal(merged.rules.seat, 3);
+  const kept = mergeDocs(JSON.parse(oldText), { ...fresh, savedAt: 1, rules: { v: 1, seat: 0 } }, { keepLocalRound: true });
+  assert.equal(kept.rules.seat, 0);
+  assert.equal(kept.results.games, 4);
+});

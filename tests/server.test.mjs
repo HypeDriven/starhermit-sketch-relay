@@ -48,12 +48,12 @@ await new Promise((resolve, reject) => {
 
 // static assets get correct content types
 await new Promise((resolve, reject) => {
-  http.get({ host: '127.0.0.1', port, path: '/favicon.svg' }, (res) => {
+  http.get({ host: '127.0.0.1', port, path: '/icon.png' }, (res) => {
     res.resume();
     res.on('end', () => {
       try {
-        ok(res.statusCode === 200, 'favicon served');
-        ok(res.headers['content-type'] === 'image/svg+xml', 'favicon has svg content type');
+        ok(res.statusCode === 200, 'icon served');
+        ok(res.headers['content-type'] === 'image/png', 'icon has png content type');
         resolve();
       } catch (e) { reject(e); }
     });
