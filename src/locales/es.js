@@ -17,7 +17,6 @@ export const ES_419 = {
   'Words solved: {n} of {total}': 'Palabras resueltas: {n} de {total}',
   'Guesses: {n}': 'Intentos: {n}',
   'Best round: {best}/{total}': 'Mejor ronda: {best}/{total}',
-  'Player {id}': 'Jugador {id}',
   'A party game of drawing and guessing.': 'Un juego de fiesta para dibujar y adivinar.',
   'Solo relay practice': 'Práctica de relevos en solitario',
   'This build is a prompt relay: twelve studio artists take turns and each shows you three prompts. Type the prompt shown into the guess box and press Enter (or Submit) before the 60-second timer runs out. Wrong or misspelled guesses are counted and you can try again.': 'Esta versión es un relevo de palabras: doce artistas del estudio se turnan y cada uno te muestra tres palabras. Escribe la palabra que se muestra en el cuadro de respuesta y presiona Enter (o Enviar) antes de que termine el temporizador de 60 segundos. Los intentos incorrectos o mal escritos se cuentan y puedes volver a intentarlo.',
@@ -28,11 +27,12 @@ export const ES_419 = {
   'Your guess — type the prompt shown': 'Tu respuesta: escribe la palabra que se muestra',
   'Type a word and press Enter': 'Escribe y presiona Enter',
   'Submit': 'Enviar',
+  'Settings': 'Configuración',
+  'Your guess': 'Tu respuesta',
   'Paused': 'En pausa',
   'Resume': 'Continuar',
   'Quit to title': 'Salir al título',
   'Back to title': 'Volver al título',
-  'Loading…': 'Cargando…',
   'apple': 'manzana', 'bridge': 'puente', 'candle': 'vela', 'desert': 'desierto', 'eagle': 'águila', 'flame': 'llama',
   'guitar': 'guitarra', 'harbor': 'puerto', 'island': 'isla', 'jungle': 'selva', 'kettle': 'tetera', 'lantern': 'linterna',
   'mountain': 'montaña', 'needle': 'aguja', 'ocean': 'océano', 'pencil': 'lápiz', 'quilt': 'edredón', 'rainbow': 'arcoíris',
@@ -42,6 +42,7 @@ export const ES_419 = {
 };
 
 export const ES_ES = {
+  'Settings': 'Ajustes',
   'Type the prompt shown, then press Enter.': 'Escribe la palabra que se muestra y pulsa Intro.',
   'Type the prompt shown and press Enter.': 'Escribe la palabra que se muestra y pulsa Intro.',
   'Type a word and press Enter': 'Escribe y pulsa Intro',

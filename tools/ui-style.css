@@ -1,0 +1,39 @@
+/* Sketch Relay — the browser build's src/style.css rewritten class-based for
+   the engine's UI (`npm run css` converts it into assets/ui-style.json).
+   Element and id selectors and @media do not convert: every widget names its
+   classes, and the short-landscape and narrow-phone breakpoints are layouts
+   picked in native/main.ts. The large-screen zoom (ui-scale.js) is the
+   runtime's UI scale; the settings panel is the runtime's Options. */
+
+* { box-sizing: border-box; }
+
+/* ------------------------------------------------------------- buttons */
+.btn { background: #3b4252; color: #ffffff; font-size: 18px; font-weight: 600; padding: 14px 28px; border-radius: 10px; }
+.btn:hover { background: #4a5264; }
+.btn:focus-visible { outline: 3px solid #f7c948; outline-offset: 2px; }
+.btn-primary { background: #c9372b; color: #ffffff; font-size: 18px; font-weight: 600; padding: 14px 28px; border-radius: 10px; }
+.btn-primary:hover { background: #d84a3d; }
+.btn-primary:focus-visible { outline: 3px solid #f7c948; outline-offset: 2px; }
+.btn-small { background: #3b4252; color: #ffffff; font-size: 15px; font-weight: 600; padding: 9px 16px; border-radius: 8px; min-height: 44px; }
+.btn-small:hover { background: #4a5264; }
+.btn-small:focus-visible { outline: 3px solid #f7c948; outline-offset: 2px; }
+
+/* ------------------------------------------------------------- surfaces */
+.panel { background: #141821eb; border-radius: 12px; padding: 18px 22px; }
+.pill { background: #141821c7; border-radius: 8px; padding: 6px 12px; }
+.toast { background: #141822f0; border-radius: 10px; padding: 10px 16px; box-shadow: 0 6px 20px #00000066; }
+.field { background: #2a2f3a; color: #ffffff; font-size: 19px; border-radius: 8px; padding: 12px 14px; min-height: 46px; }
+
+/* ------------------------------------------------------------- text */
+.title-name { color: #ffffff; font-size: 32px; font-weight: 700; text-align: center; text-shadow: 0 2px 10px #080a10bf; }
+.tagline { color: #f3f4f6; font-size: 16px; text-align: center; }
+.panel-title { color: #aab2c0; font-size: 15px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.panel-text { color: #ffffff; font-size: 34px; font-weight: 700; text-align: center; }
+.panel-label { color: #f3f4f6; font-size: 16px; text-align: center; }
+.how-text { color: #d7dbe2; font-size: 15px; }
+.feedback { color: #f7c948; font-size: 14px; text-align: center; }
+.hud-item { color: #e8eaee; font-size: 17px; }
+.status { color: #aab2c0; font-size: 14px; }
+.overlay-title { color: #ffffff; font-size: 30px; font-weight: 700; text-align: center; }
+.body-text { color: #eef0f3; font-size: 17px; text-align: center; }
+.toast-text { color: #f1f3f8; font-size: 14px; text-align: center; }

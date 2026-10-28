@@ -1,0 +1,225 @@
+{
+  "styles": {
+    ".btn": {
+      "background": "#3b4252",
+      "radius": 10,
+      "padding": {
+        "top": 14,
+        "end": 28,
+        "bottom": 14,
+        "start": 28
+      },
+      "text": {
+        "color": "#ffffff",
+        "size": 18,
+        "weight": "600"
+      },
+      "hovered": {
+        "background": "#4a5264"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 3,
+          "color": "#f7c948",
+          "offset": 2
+        }
+      }
+    },
+    ".btn-primary": {
+      "background": "#c9372b",
+      "radius": 10,
+      "padding": {
+        "top": 14,
+        "end": 28,
+        "bottom": 14,
+        "start": 28
+      },
+      "text": {
+        "color": "#ffffff",
+        "size": 18,
+        "weight": "600"
+      },
+      "hovered": {
+        "background": "#d84a3d"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 3,
+          "color": "#f7c948",
+          "offset": 2
+        }
+      }
+    },
+    ".btn-small": {
+      "background": "#3b4252",
+      "radius": 8,
+      "padding": {
+        "top": 9,
+        "end": 16,
+        "bottom": 9,
+        "start": 16
+      },
+      "minHeight": 44,
+      "text": {
+        "color": "#ffffff",
+        "size": 15,
+        "weight": "600"
+      },
+      "hovered": {
+        "background": "#4a5264"
+      },
+      "focusVisible": {
+        "focusRing": {
+          "width": 3,
+          "color": "#f7c948",
+          "offset": 2
+        }
+      }
+    },
+    ".panel": {
+      "background": "#141821eb",
+      "radius": 12,
+      "padding": {
+        "top": 18,
+        "end": 22,
+        "bottom": 18,
+        "start": 22
+      }
+    },
+    ".pill": {
+      "background": "#141821c7",
+      "radius": 8,
+      "padding": {
+        "top": 6,
+        "end": 12,
+        "bottom": 6,
+        "start": 12
+      }
+    },
+    ".toast": {
+      "background": "#141822f0",
+      "radius": 10,
+      "shadow": {
+        "y": 6,
+        "blur": 20,
+        "color": "#00000066"
+      },
+      "padding": {
+        "top": 10,
+        "end": 16,
+        "bottom": 10,
+        "start": 16
+      }
+    },
+    ".field": {
+      "background": "#2a2f3a",
+      "radius": 8,
+      "padding": {
+        "top": 12,
+        "end": 14,
+        "bottom": 12,
+        "start": 14
+      },
+      "minHeight": 46,
+      "text": {
+        "color": "#ffffff",
+        "size": 19
+      }
+    },
+    ".title-name": {
+      "text": {
+        "color": "#ffffff",
+        "size": 32,
+        "weight": "700",
+        "align": "center",
+        "shadow": {
+          "y": 2,
+          "blur": 10,
+          "color": "#080a10bf"
+        }
+      }
+    },
+    ".tagline": {
+      "text": {
+        "color": "#f3f4f6",
+        "size": 16,
+        "align": "center"
+      }
+    },
+    ".panel-title": {
+      "text": {
+        "color": "#aab2c0",
+        "size": 15,
+        "weight": "700",
+        "letterSpacing": "0.12em",
+        "transform": "uppercase"
+      }
+    },
+    ".panel-text": {
+      "text": {
+        "color": "#ffffff",
+        "size": 34,
+        "weight": "700",
+        "align": "center"
+      }
+    },
+    ".panel-label": {
+      "text": {
+        "color": "#f3f4f6",
+        "size": 16,
+        "align": "center"
+      }
+    },
+    ".how-text": {
+      "text": {
+        "color": "#d7dbe2",
+        "size": 15
+      }
+    },
+    ".feedback": {
+      "text": {
+        "color": "#f7c948",
+        "size": 14,
+        "align": "center"
+      }
+    },
+    ".hud-item": {
+      "text": {
+        "color": "#e8eaee",
+        "size": 17
+      }
+    },
+    ".status": {
+      "text": {
+        "color": "#aab2c0",
+        "size": 14
+      }
+    },
+    ".overlay-title": {
+      "text": {
+        "color": "#ffffff",
+        "size": 30,
+        "weight": "700",
+        "align": "center"
+      }
+    },
+    ".body-text": {
+      "text": {
+        "color": "#eef0f3",
+        "size": 17,
+        "align": "center"
+      }
+    },
+    ".toast-text": {
+      "text": {
+        "color": "#f1f3f8",
+        "size": 14,
+        "align": "center"
+      }
+    }
+  },
+  "animations": {},
+  "tokens": {},
+  "layouts": {},
+  "dropped": []
+}

@@ -1,0 +1,30 @@
+# The title, a round with a wrong and a right guess, pause and resume, quit, resume round.
+until 300 =Play
+frames 150
+save relay-title
+click =Play
+until 120 Time left
+frames 60
+type nope
+frames 3
+key Enter 1
+frames 5
+expect is not the prompt
+type apple
+frames 3
+key Enter 1
+frames 5
+expect Correct! Next prompt.
+expect bridge
+save relay-round
+click =Pause
+until 60 =Resume
+frames 10
+save relay-pause
+click =Resume
+frames 20
+click =Pause
+frames 10
+click =Quit to title
+until 60 =Resume round
+frames 10
