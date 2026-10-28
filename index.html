@@ -1,107 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
+<!-- StarHermit web loader, written by starhermit package --web: it pins the engine by hash and holds no script of its own; package again rather than edit it. -->
 <html lang="en">
 <head>
-  <link rel="icon" href="favicon.png" type="image/png">
-  <link rel="icon" type="image/png" href="./icon.png" />
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="icon.png">
 <title>Sketch Relay</title>
-<link rel="stylesheet" href="./src/style.css" />
-<script src="game-options.js" data-game="sketch-relay"></script>
-<script src="ui-scale.js"></script>
-<script src="starhermit-sdk.js"></script>
-<script>StarHermit.init();</script>
-<script src="sh-language.js"></script>
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
-<script src="./src/gpu-level.js"></script>
-<script type="module" src="./src/main.js"></script>
-<script type="module" src="./src/sfx.js"></script>
-<script src="browser-guard.js"></script>
+<style>html,body{margin:0;height:100%;background:#000;color:#eee;font:16px/1.5 system-ui,sans-serif}canvas{display:block;width:100%;height:100%}.starhermit-message{position:fixed;inset:0;margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:#000}.starhermit-message[hidden]{display:none}.starhermit-late{animation:starhermit-late 0s 20s both}@keyframes starhermit-late{from{visibility:hidden}to{visibility:visible}}</style>
+<script type="module" src="https://wiki.starhermit.com/engine/1.20.1/starhermit.js" integrity="sha384-2NwjerRV8O0Qu0zjGRH8QAhiiygyXGVMxHE6rzCkMenmvRgd2sxFkHyNZEtBeT7Z" crossorigin="anonymous"></script>
+<script type="application/json" id="starhermit-config">{"manifest":{"integrity":"sha384-+rRnWJrcv/J5V4ZCUL8kVbwQ+7cSKuDkZy4jfBsdCg9mEMOZ4gJiFaMQzdBZ/Wdm","url":"https://wiki.starhermit.com/engine/1.20.1/manifest.json"}}</script>
 </head>
 <body>
-<div id="app">
-  <canvas id="scene-canvas"></canvas>
-
-  <!-- Title screen -->
-  <section id="screen-title" class="screen" hidden>
-    <h1 class="title-name">Sketch Relay</h1>
-    <p class="tagline" data-i18n="A party game of drawing and guessing.">A party game of drawing and guessing.</p>
-    <div class="panel how-to">
-      <h2 class="panel-title" data-i18n="Solo relay practice">Solo relay practice</h2>
-      <p class="how-text" data-i18n="This build is a prompt relay: twelve studio artists take turns and each shows you three prompts. Type the prompt shown into the guess box and press Enter (or Submit) before the 60-second timer runs out. Wrong or misspelled guesses are counted and you can try again.">This build is a prompt relay: twelve studio artists take turns and each shows you three prompts. Type the prompt shown into the guess box and press Enter (or Submit) before the 60-second timer runs out. Wrong or misspelled guesses are counted and you can try again.</p>
-    </div>
-    <div class="menu-buttons">
-      <button id="btn-play" class="btn btn-primary" data-i18n="Play">Play</button>
-      <button id="btn-resume-round" class="btn" hidden data-i18n="Resume round">Resume round</button>
-      <button id="btn-settings" class="btn">Settings</button>
-      <button id="btn-signin" class="btn" hidden>Sign in with StarHermit</button>
-      <button id="btn-invite" class="btn" hidden>Invite a friend</button>
-    </div>
-    <p id="platform-status" class="platform-status"></p>
-  </section>
-
-  <!-- Game HUD -->
-  <section id="screen-game" class="screen" hidden>
-    <header id="hud-top" class="hud-bar">
-      <span id="hud-round" class="hud-item" role="status" aria-live="polite"></span>
-      <span id="hud-timer" class="hud-item hud-timer"></span>
-      <button id="btn-pause" class="btn btn-small" data-i18n="Pause">Pause</button>
-    </header>
-
-    <div id="prompt-panel" class="panel" hidden>
-      <h2 class="panel-title" data-i18n="Prompt">Prompt</h2>
-      <p id="prompt-word" class="panel-text"></p>
-    </div>
-
-    <div id="guess-panel" class="panel" hidden>
-      <label class="panel-label" for="guess-input" data-i18n="Your guess — type the prompt shown">Your guess — type the prompt shown</label>
-      <input id="guess-input" type="text" autocomplete="off" placeholder="Type a word and press Enter" data-i18n-placeholder="Type a word and press Enter" />
-      <button id="btn-guess-submit" class="btn btn-primary" data-i18n="Submit">Submit</button>
-      <p id="guess-feedback" class="guess-feedback" role="status" aria-live="polite"></p>
-    </div>
-
-    <footer id="hud-bottom" class="hud-bar">
-      <span id="hud-status" class="hud-item hud-status"></span>
-    </footer>
-  </section>
-
-  <!-- Pause overlay -->
-  <section id="screen-pause" class="overlay" hidden>
-    <h2 id="pause-title" class="overlay-title" data-i18n="Paused">Paused</h2>
-    <button id="btn-resume" class="btn btn-primary" data-i18n="Resume">Resume</button>
-    <button id="btn-pause-settings" class="btn">Settings</button>
-    <button id="btn-quit-to-title" class="btn" data-i18n="Quit to title">Quit to title</button>
-  </section>
-
-  <!-- Settings (Graphics) -->
-  <section id="screen-settings" class="overlay settings-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
-    <div class="panel settings-panel" data-options-graphics>
-      <div class="settings-head">
-        <h2 id="settings-title" class="overlay-title">Settings</h2>
-        <button id="btn-settings-close" class="btn btn-small">Close</button>
-      </div>
-      <h3 id="gfx-heading" class="panel-title">Graphics</h3>
-      <div id="gfx-form" class="gfx-form"></div>
-      <p id="gfx-summary" class="gfx-summary" data-gfx-summary></p>
-      <p id="gfx-note" class="gfx-note" role="status" hidden></p>
-    </div>
-  </section>
-
-  <!-- Results screen -->
-  <section id="screen-results" class="overlay" hidden aria-live="polite">
-    <h2 id="results-headline" class="overlay-title"></h2>
-    <div id="results-body" class="panel"></div>
-    <p id="results-lb" class="panel" aria-live="polite" hidden></p>
-    <button id="btn-back-to-title" class="btn btn-primary" data-i18n="Back to title">Back to title</button>
-  </section>
-
-  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
-
-  <!-- Loading -->
-  <section id="screen-loading" class="overlay">
-    <p class="loading-text" data-i18n="Loading…">Loading…</p>
-  </section>
-</div>
-<script type="module" src="./src/boot.js"></script>
+<canvas></canvas>
+<div id="starhermit-status" class="starhermit-message" role="status"><span>Loading Sketch Relay…</span><span class="starhermit-late">If the game has not started, this browser cannot run it or its engine (StarHermit 1.20.1) could not be loaded: reload the page, or open it in a current Chrome, Edge, Firefox or Safari.</span></div>
+<noscript><p class="starhermit-message">This game needs JavaScript.</p></noscript>
 </body>
 </html>

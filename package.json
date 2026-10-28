@@ -1,18 +1,19 @@
 {
   "name": "sketch-relay",
   "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
+  "description": "Sketch Relay — a solo prompt relay in a shared drawing studio, on the StarHermit engine.",
   "type": "module",
-  "scripts": {
-    "test": "node tests/rules.test.mjs && node --test tests/gfx.test.mjs tests/i18n.test.mjs tests/save-merge.test.mjs && node tests/threejs.test.mjs && node tests/platform.test.mjs && node tests/server.test.mjs",
-    "test:e2e": "node tests/e2e.mjs"
-  },
-  "keywords": [],
-  "author": "",
+  "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
-  "dependencies": {
-    "three": "^0.182.0"
+  "scripts": {
+    "test": "npm run test:unit && npm run test:native",
+    "test:unit": "node tests/rules.test.mjs && node --test tests/i18n.test.mjs tests/save-merge.test.mjs && node tests/server.test.mjs",
+    "test:native": "node tests/native.mjs",
+    "test:browser": "node tools/browser-play.mjs .",
+    "start": "node server.js",
+    "package": "node tools/package-web.mjs",
+    "css": "node tools/css.mjs",
+    "plays": "node tools/gen-plays.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.62.1"

@@ -210,8 +210,9 @@ const textW = (text: string, cls: string, kind?: "button"): number =>
   ui.measureText(text, { ...(kind ? { kind } : {}), style: [cls] }).width / ui.preferences().scale;
 /** Text up to `width` wide: one label when it fits, else a wrapped paragraph. */
 function para(text: string, width: number, cls: string, size?: number): void {
-  const st = size ? [cls, { text: { size } }] : [cls];
-  if (textW(text, cls) * (size ? size / 16 : 1) <= width && !size) ui.style(...st).label(text);
+  const st: (string | ui.Style)[] = size ? [cls, { text: { size } }] : [cls];
+  const w = ui.measureText(text, { style: st }).width / ui.preferences().scale;
+  if (w <= width) ui.style(...st).label(text);
   else ui.style(...st).paragraph(text, Math.max(20, width));
 }
 interface Btn { id: string; text: string; cls?: string; act: () => void; size?: number; pad?: [number, number] }
