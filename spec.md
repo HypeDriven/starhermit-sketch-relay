@@ -1,7 +1,7 @@
 # Sketch Relay — specification (StarHermit engine)
 
 Sketch Relay is a StarHermit engine script game (TypeScript on the host API), pinned to engine
-**1.22.0** with `engine.minor=20`. One package plays natively in the StarHermit client and in
+**1.23.0** with `engine.minor=20`. One package plays natively in the StarHermit client and in
 browsers through the engine's web runtime (`index.html` is the loader `npm run package` writes).
 
 ## The game
