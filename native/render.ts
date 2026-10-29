@@ -7,8 +7,8 @@
 // budgets).
 //
 // From three.js r182 (physically based lights): colours as written, the
-// punctual, ambient and hemisphere intensities ÷ π (the engine takes three's
-// legacy units). threejs.js's `new RoomEnvironment()` at r182 is the bright
+// punctual, ambient and hemisphere intensities as written (engine.minor 23+
+// takes r155+ units). threejs.js's `new RoomEnvironment()` at r182 is the bright
 // (renderer) room — `new RoomEnvironment(renderer)` here — at the old page's
 // own scene.environmentIntensity 0.3. The old composer (RenderPass → GTAO →
 // UnrealBloom 0.45 / 0.4 / 0.92 → the colour grade → OutputPass with ACES at
@@ -20,7 +20,7 @@ import {
   ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CapsuleGeometry, Color,
   ConeGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, HemisphereLight, IcosahedronGeometry, Mesh, MeshBasicMaterial,
   MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Points, PointsMaterial, RepeatWrapping,
-  RingGeometry, RoomEnvironment, SphereGeometry, SRGBColorSpace, renderer, scene, type Texture,
+  RingGeometry, OrthographicCamera, RoomEnvironment, SphereGeometry, SRGBColorSpace, renderer, scene, type Texture,
 } from "starhermit:scene";
 import { OffscreenCanvas, type OffscreenCanvasRenderingContext2D } from "starhermit:canvas";
 import { ROSTER_SIZE, ROUND_SECONDS } from "./game.ts";
@@ -157,15 +157,17 @@ camera.lookAt(0, 1.8, -1);
 renderer.camera = camera;
 scene.background = new Color("#161922");
 
-const hemi = new HemisphereLight("#ffeed8", "#3a3040", 0.6 / Math.PI);
-const ambLight = new AmbientLight("#6e6e7a", 0.25 / Math.PI);
-const keyLight = new DirectionalLight("#fff4e5", 1.6 / Math.PI);
+const hemi = new HemisphereLight("#ffeed8", "#3a3040", 0.6);
+const ambLight = new AmbientLight("#6e6e7a", 0.25);
+const keyLight = new DirectionalLight("#fff4e5", 1.6);
 keyLight.position.set(5, 11, 9);
 keyLight.target.position.set(0, 1.5, -1);
 // three's fitted shadow box (-9…9 × -5…7, 2–32 m): the engine fits directional shadows to the view
-keyLight.shadow.distance = 32;
+const sc = keyLight.shadow.camera as OrthographicCamera;
+sc.left = -9; sc.right = 9; sc.top = 7; sc.bottom = -5; sc.near = 2; sc.far = 32;
+sc.updateProjectionMatrix();
 keyLight.shadow.bias = -0.0004;
-keyLight.shadow.normalBias = 1.5; // three's 0.03 world units; the engine's normal bias is in texels
+keyLight.shadow.normalBias = 0.03;
 keyLight.shadow.radius = 3;
 scene.add(hemi, ambLight, keyLight, keyLight.target);
 
@@ -397,7 +399,7 @@ export function applyLook(next: Look): void {
     t.mat.color.set(next.detailed ? "#ffffff" : t.plainColor);
   }
   detailGroup.visible = next.detailed;
-  ambLight.intensity = (next.detailed ? 0.25 : 0.55) / Math.PI;
+  ambLight.intensity = next.detailed ? 0.25 : 0.55;
   motes.visible = next.motes > 0;
   moteGeo.setDrawRange(0, Math.min(PARTICLE_MAX, next.motes));
   const hi = next.ao === "high";
