@@ -165,7 +165,7 @@ scene.add(hemi, ambLight, keyLight, keyLight.target);
 let envTex: Texture | null = null;
 try {
   const pmrem = new PMREMGenerator(renderer);
-  envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  const pageRoom = new RoomEnvironment(renderer); pageRoom.position.y = 0; /* the page's three r182 (pre-r183) builds the room at the origin */ envTex = pmrem.fromScene(pageRoom, 0.04).texture;
   pmrem.dispose();
   scene.environment = envTex;
   scene.environmentIntensity = 0.3;
