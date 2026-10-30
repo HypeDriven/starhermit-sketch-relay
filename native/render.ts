@@ -12,9 +12,9 @@
 // (renderer) room — `new RoomEnvironment(renderer)` here — at the old page's
 // own scene.environmentIntensity 0.3. The old composer (RenderPass → GTAO →
 // UnrealBloom 0.45 / 0.4 / 0.92 → the colour grade → OutputPass with ACES at
-// exposure 1 → SMAA / FXAA) is the runtime's renderer.ao / bloom / post /
-// antialias; the grade is the old shader in WGSL as renderer.post (the engine
-// runs it before bloom; the old one ran after it). The old canvas filled the
+// exposure 1 → SMAA / FXAA) is the runtime's renderer.ao / bloom / grade /
+// antialias; the grade is the runtime's linear smoothstep S-curve grade, after
+// bloom as the old one ran. The old canvas filled the
 // window with the DOM UI over it; so does the scene here.
 import {
   ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CapsuleGeometry, Color,
@@ -131,23 +131,14 @@ function dotTexture(): CanvasTexture {
   });
 }
 
-// ---------------------------------------------------------------- post: the colour grade (threejs.js GradeShader in WGSL)
+// ---------------------------------------------------------------- post: the colour grade (threejs.js GradeShader)
+// GradeShader on the linear buffer after bloom, before OutputPass: a 0.18 smoothstep S-curve (contrastCurve "s"),
+// saturation 1.1, cool shadows / warm highlights by a smoothstep of luma from 0.2 to 0.8, the s * 0.97 + 0.02 lift
+// (levels), over-range light kept, a 0.24 vignette from 0.35 to 0.85.
 const GRADE = {
-  pixel: /* wgsl */ `
-fn pixel(p: Pixel) -> vec4f {
-  let src = scene_color(p.uv);
-  var c = src.rgb;
-  let lc = clamp(c, vec3f(0.0), vec3f(1.0));
-  var s = mix(lc, lc * lc * (3.0 - 2.0 * lc), 0.18);
-  let l = dot(s, vec3f(0.299, 0.587, 0.114));
-  s = mix(vec3f(l), s, 1.1);
-  s = s * mix(vec3f(0.96, 0.98, 1.05), vec3f(1.04, 1.0, 0.95), smoothstep(0.2, 0.8, l));
-  s = s * 0.97 + 0.02;
-  c = s + max(c - 1.0, vec3f(0.0));
-  let d = length(p.uv - vec2f(0.5));
-  c = c * (1.0 - 0.24 * smoothstep(0.35, 0.85, d));
-  return vec4f(c, src.a);
-}`,
+  space: "linear" as const, contrastCurve: "s" as const, overRange: "keep" as const, contrast: 0.18, saturation: 1.1, split: [0.2, 0.8] as [number, number],
+  shadows: [0.96, 0.98, 1.05] as [number, number, number], highlights: [1.04, 1.0, 0.95] as [number, number, number], levels: [0.97, 0.02] as [number, number],
+  vignette: { amount: 0.24, inner: 0.35, outer: 0.85, scale: [1, 1] as [number, number] },
 };
 
 // ---------------------------------------------------------------- the scene
@@ -410,8 +401,8 @@ export function applyLook(next: Look): void {
   };
   // high threshold: only lamp bulbs, the timer bar and the artist ring bloom
   renderer.bloom = next.bloom ? { strength: 0.45, radius: 0.4, threshold: 0.92, resolution: next.bloomRes } : null;
-  renderer.post = next.grade ? GRADE : null;
-  renderer.grade = null;
+  renderer.post = null;
+  renderer.grade = next.grade ? GRADE : null;
   renderer.antialias = next.antialias;
 }
 

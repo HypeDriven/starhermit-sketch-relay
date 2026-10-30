@@ -1,7 +1,7 @@
 # Sketch Relay — specification (StarHermit engine)
 
 Sketch Relay is a StarHermit engine script game (TypeScript on the host API), pinned to engine
-**1.27.0** with `engine.minor=29`. One package plays natively in the StarHermit client and in
+**1.28.0** with `engine.minor=30`. One package plays natively in the StarHermit client and in
 browsers through the engine's web runtime (`index.html` is the loader `npm run package` writes).
 
 ## The game
@@ -76,7 +76,8 @@ Graphics follow the runtime's quality tier (`frame().quality`, `native/quality.t
 Rendering ports three.js r182: punctual, ambient and hemisphere intensities ÷ π (engine light
 units), `RoomEnvironment(renderer)` (r182's room) at the old `environmentIntensity` 0.3, ACES at
 exposure 1, bloom 0.45 / 0.4 / threshold 0.92, GTAO radius 0.6 blend 0.7, the old colour grade and
-vignette as a WGSL `renderer.post` (the engine runs it before bloom; the old one ran after).
+vignette as the runtime's linear `renderer.grade` after bloom (smoothstep S-curve 0.18, saturation 1.1,
+split tint, levels 0.97 + 0.02, over-range kept, vignette 0.24).
 
 ## Sound
 
