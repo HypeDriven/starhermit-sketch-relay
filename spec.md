@@ -63,15 +63,17 @@ The runtime's Options own sound volumes and mute, the voice limit, graphics leve
 limit, language, controls and accessibility (text scale, high contrast, reduced motion). The
 browser build's Graphics panel, Language section and Sound section are not rebuilt.
 
-Graphics follow the runtime's quality tier (`frame().quality`, `native/quality.ts`: the old
-`gfx.js` presets and budgets; dust motes scale ≤ 2× within a tier by `frame().levelIndex`):
+Shadows, AO, bloom, the grade and anti-aliasing come from the engine's level table
+(`levelSettings()`); the art follows the runtime's quality tier (`frame().quality`,
+`native/quality.ts`: the old `gfx.js` budgets; dust motes scale ≤ 2× within a tier by the level's
+particle budget):
 
-| Tier | Shadows | AO | Bloom | Grade | AA | Dust | Studio detail | Materials |
-|---|---|---|---|---|---|---|---|---|
-| Low | off | off | off | off | MSAA | 50 (low) | plain (no props/textures) | standard |
-| Balanced | 1024 | off | on | on | FXAA | 80 (low) | detailed | standard |
-| High | 2048 | on (8 samples) | on | on | SMAA | 420 | detailed | clear-coated |
-| Ultra | 4096 | high (16) | on | on | MSAA | 600 | detailed | clear-coated |
+| Tier | Dust | Studio detail | Materials |
+|---|---|---|---|
+| Low | 50 (low) | plain (no props/textures) | standard |
+| Balanced | 80 (low) | detailed | standard |
+| High | 420 | detailed | clear-coated |
+| Ultra | 600 | detailed | clear-coated |
 
 Rendering ports three.js r182: punctual, ambient and hemisphere intensities ÷ π (engine light
 units), `RoomEnvironment(renderer)` (r182's room) at the old `environmentIntensity` 0.3, ACES at
@@ -105,11 +107,10 @@ load one at a time once the mixer runs (in a browser after the first press).
   (60 Hz; `rules.tick` only while the relay plays), save, results, lifecycle.
 - `native/render.ts` — the studio on starhermit:scene; `native/quality.ts` — looks per tier.
 - `native/platform.ts` — save, merge, foreign-slot migration, invite, score posting.
-- `native/i18n.ts` — the runtime language → `src/i18n.js` + `src/locales/*` (nine locales) and
-  `src/sh-strings.js`; `native/audio.ts` — clips; `native/style.ts` + `tools/ui-style.css` →
+- `native/i18n.ts` — the engine's strings (`assets/strings.json`, nine locales; account lines `starhermit.*`); `native/audio.ts` — clips; `native/style.ts` + `tools/ui-style.css` →
   `assets/ui-style.json` (`npm run css`); `native/game.ts` — typed views of the shared modules.
 - Unchanged browser-build modules: `src/rules.js`, `src/prompts.js`, `src/save-merge.js`,
-  `src/sh-strings.js`, the locale tables; `score-script.js` (server script); `server.js` (a local
+  `assets/strings.json`; `score-script.js` (server script); `server.js` (a local
   static file server, development only).
 
 ## Checks

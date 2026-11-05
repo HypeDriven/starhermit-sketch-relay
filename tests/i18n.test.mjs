@@ -1,16 +1,21 @@
 // Localization coverage: every string native/*.ts shows through T()/N() and
 // every prompt word has a row (same placeholders) in each translated locale,
-// no locale keeps rows nothing shows, the account strings (sh-strings.js)
-// cover all nine locales, and prompts are accepted in the game language.
+// no locale keeps rows nothing shows, and prompts are accepted in the game language.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { DICTS, LOCALES, T, getLang, setLocale } from '../src/i18n.js';
+import { T, fmt, setTranslator } from '../src/i18n.js';
 import { Rules, WORDS_BY_PLAYER } from '../src/rules.js';
-import { SH_STRINGS, shStrings } from '../src/sh-strings.js';
 import { canonicalGuess } from '../src/prompts.js';
 
 const ROOT = new URL('..', import.meta.url).pathname;
+const DICTS = JSON.parse(readFileSync(`${ROOT}assets/strings.json`, 'utf8'));
+const LOCALES = Object.keys(DICTS);
+// The engine's lookup, as native/i18n.ts installs it (en-GB falls back to en-US).
+const setLocale = (l) => {
+  const d = { ...DICTS['en-US'], ...(DICTS[l] ?? {}) };
+  setTranslator((k) => Object.prototype.hasOwnProperty.call(d, k), (k, v) => fmt(d[k], v));
+};
 function nativeKeys() {
   const keys = new Set();
   const call = /(?<![\w.$])(?:T|N)\(\s*"((?:[^"\\\n]|\\.)*)"/g;
@@ -48,15 +53,8 @@ test('no locale carries keys that no longer exist', () => {
   }
 });
 
-test('the StarHermit account strings cover all nine locales', () => {
-  const keys = Object.keys(SH_STRINGS['en-US']).sort();
-  for (const locale of LOCALES) assert.deepEqual(Object.keys(shStrings(locale)).sort(), keys, locale);
-  assert.notEqual(shStrings('it-IT').signIn, 'Sign in with StarHermit');
-});
-
 test('T falls back to the key and fills placeholders; regional dictionaries inherit', () => {
   setLocale('de-DE');
-  assert.equal(getLang(), 'de-DE');
   assert.equal(T('Not a real key {x}', { x: 1 }), 'Not a real key 1');
   assert.equal(T('Paused'), 'Pausiert');
   assert.equal(T('Time left: {n}s', { n: 42 }), 'Restzeit: 42 s');
@@ -65,8 +63,7 @@ test('T falls back to the key and fills placeholders; regional dictionaries inhe
   assert.equal(T('quilt'), 'courtepointe');
   setLocale('en-GB');
   assert.equal(T('harbor'), 'harbour');
-  setLocale('xx-YY');
-  assert.equal(getLang(), 'en-US');
+  setLocale('en-US');
   assert.equal(T('Paused'), 'Paused');
 });
 

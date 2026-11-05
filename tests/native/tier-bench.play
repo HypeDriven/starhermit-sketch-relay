@@ -1,0 +1,9 @@
+# Graphics-level bench: a relay round from Play, no guesses, 600 frames of the studio (motes, lamps, the artist, the timer).
+until 300 =Play
+frames 150
+click =Play
+until 120 Time left
+frames 120
+measure start
+frames 600
+measure stop

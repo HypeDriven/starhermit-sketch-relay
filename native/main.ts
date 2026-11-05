@@ -21,7 +21,7 @@
 // copied the platform's invite link, its server.js was a static file server),
 // so there is no hosted play to referee; the solved-word count posts to the
 // words-solved board through score-script.js, as before.
-import { clipboard, frame, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, openMenu, preferences, setFixedRate } from "starhermit:engine";
+import { afterRender, clipboard, frame, levelSettings, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, openMenu, preferences, setFixedRate } from "starhermit:engine";
 import { onAction, onKey, primaryPointer } from "starhermit:input";
 import * as ui from "starhermit:ui";
 import { onSessionEnded, requestSignIn } from "starhermit:platform";
@@ -47,16 +47,17 @@ let wasOver = false;
 let guessText = "";
 let feedback: { key: string; vars?: Record<string, string> } | null = null;
 let lbState: platform.Posted | "posting" | null = null;
-let toastMsg: { text: string; until: number } | null = null;
 let clockMs = 0;
 let focusNext: string | null = null;
 const GUESS_ID = "guess-input";
 
 const solvedCount = (): number => rules.solvedWords.reduce((n: number, s: boolean) => n + (s ? 1 : 0), 0);
-function toast(text: string, ms = 3200): void { toastMsg = { text, until: clockMs + ms }; }
-const pending: (() => void)[] = [];
+function toast(text: string, ms = 3200): void {
+  ui.clearToasts!();
+  ui.toast!(text, { duration: ms / 1000, style: ["toast", "toast-text"], dismissible: false });
+}
 /** A widget's press, run once the frame's UI is built (state changes mid-build would break later widgets). */
-function later(fn: () => void): void { pending.push(fn); }
+function later(fn: () => void): void { afterRender(fn); }
 let spoken = "";
 function announce(text: string): void { spoken = spoken ? `${spoken} ${text}` : text; }
 
@@ -202,8 +203,8 @@ function statusText(): string {
 // ------------------------------------------------------------------ layout helpers
 interface Layout { lw: number; lh: number; land: boolean; narrow: boolean }
 function layoutNow(): Layout {
-  const f = frame(), sc = ui.preferences().scale, sa = f.safeArea;
-  const lw = Math.max(1, (f.width - sa.left - sa.right) / sc), lh = Math.max(1, (f.height - sa.top - sa.bottom) / sc);
+  const v = ui.viewport!();
+  const lw = Math.max(1, v.width), lh = Math.max(1, v.height);
   return { lw, lh, land: lw > lh && lh <= 500, narrow: lw <= 520 };
 }
 const textW = (text: string, cls: string, kind?: "button"): number =>
@@ -222,17 +223,7 @@ function button(b: Btn): void {
 }
 /** A centred flex-wrap row of buttons (.menu-buttons). */
 function flow(id: string, list: Btn[], width: number, gap: number): void {
-  const rows: Btn[][] = [[]];
-  let used = 0;
-  for (const b of list) {
-    const w = textW(b.text, b.cls ?? "btn", "button");
-    if (rows[rows.length - 1]!.length && used + gap + w > width) { rows.push([]); used = 0; }
-    rows[rows.length - 1]!.push(b);
-    used += (used ? gap : 0) + w;
-  }
-  ui.column(id, () => {
-    rows.forEach((r, i) => ui.row(`${id}-${i}`, () => { for (const b of r) button(b); }, { spacing: gap, align: "center" }));
-  }, { spacing: gap, align: "center" });
+  ui.row(id, () => { for (const b of list) button(b); }, { wrap: true, width, gap, justify: "center", align: "center" });
 }
 /** The prompt word at the panel's width (34 px, 24 in short landscape; smaller for long words). */
 function fitSize(text: string, cls: string, base: number, width: number): number {
@@ -258,7 +249,7 @@ function drawTitle(L: Layout): void {
       ui.style("pill").column("tagline-pill", () => para(T("A party game of drawing and guessing."), Math.min(w, 560) - 24, "tagline", L.land ? 14 : undefined));
       ui.style("panel", L.land ? { padding: { top: 10, bottom: 10, start: 16, end: 16 } } : null).column("how-to", () => {
         ui.style("panel-title", L.land ? { text: { size: 12 } } : null).label(T("Solo relay practice"));
-        ui.style("how-text", L.land ? { text: { size: 13 } } : null).paragraph(T("This build is a prompt relay: twelve studio artists take turns and each shows you three prompts. Type the prompt shown into the guess box and press Enter (or Submit) before the 60-second timer runs out. Wrong or misspelled guesses are counted and you can try again."), panelW - (L.land ? 32 : 44));
+        ui.style("how-text", L.land ? { text: { size: 13 } } : null).paragraph(T("This build is a prompt relay"), panelW - (L.land ? 32 : 44));
       }, { width: panelW, spacing: L.land ? 4 : 8 });
       const pad: [number, number] | undefined = L.land ? [10, 22] : undefined;
       const size = L.land ? 16 : undefined;
@@ -385,21 +376,11 @@ function drawResults(L: Layout): void {
   });
 }
 
-function drawToast(L: Layout): void {
-  if (!toastMsg) return;
-  const w = Math.min(L.lw * 0.92, 520);
-  const tw = Math.min(w - 32, textW(toastMsg.text, "toast-text"));
-  ui.place("toast", { anchor: "bottom", y: 16 }, () => {
-    ui.style("toast").column("toast-box", () => para(toastMsg!.text, tw + 1, "toast-text"), { align: "center" });
-  });
-}
-
 function drawScreens(): void {
   const L = layoutNow();
   if (screen === "title") drawTitle(L);
   else if (screen === "game") { drawGame(L); if (paused) drawPause(); }
   else drawResults(L);
-  drawToast(L);
   if (focusNext) { ui.setFocus(focusNext); focusNext = null; }
 }
 
@@ -435,12 +416,12 @@ onFixedUpdate(() => {
 let lookKey = "";
 function applyLook(): void {
   const f = frame();
-  const k = `${f.quality}:${f.levelIndex}`;
-  if (k === lookKey) return;
-  lookKey = k;
-  render.applyLook(lookFor(f.quality, f.levelIndex));
+  if (f.level === lookKey) return;
+  lookKey = f.level;
+  render.applyLook(lookFor(levelSettings(f.level)));
 }
 onStart(() => {
+  audio.loadSfx();
   setFixedRate(60);
   initStyles();
   platform.initPlatform(keepLocalRound);
@@ -464,13 +445,10 @@ let frameDt = 0;
 onUpdate((dt) => {
   frameDt = dt;
   applyLook();
-  audio.update();
   watchGameOver();
-  if (toastMsg && toastMsg.until <= clockMs) toastMsg = null;
 });
 onRender(() => {
   drawScreens();
-  for (const fn of pending.splice(0)) fn();
   watchGameOver();
   const f = frame();
   render.update(frameDt, f.width, f.height, { seat: rules.over ? -1 : rules.seat, secondsLeft: rules.secondsLeft });

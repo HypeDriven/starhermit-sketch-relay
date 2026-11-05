@@ -10,10 +10,9 @@
 //   (game:<slug>, the same JSON document) shows as foreign: it is merged in and
 //   replaced once. Guests' old localStorage copies can't be read (accepted);
 // - the player, the invite link and posting a finished game's solved-word
-//   count through score-script.js (a practice session whose socket carries
-//   { type: 'result', scores }, as the JS SDK's submitScores did) with the rank.
+//   count through score-script.js (leaderboards.submitScore) with the rank.
 import type { JsonValue } from "starhermit:engine";
-import { connectGame, inviteLink as fetchInviteLink, leaderboards, onPlayerChange, player, sessions, type Leaderboard } from "starhermit:platform";
+import { inviteLink as fetchInviteLink, leaderboards, onPlayerChange, player } from "starhermit:platform";
 import { saves } from "starhermit:storage";
 import { SAVE_VERSION, mergeDocs } from "./game.ts";
 
@@ -107,7 +106,6 @@ let invite: string | null = null;
 export function inviteLink(): string | null { return player() ? invite : null; }
 function refreshPlayer(): void {
   invite = null;
-  board = undefined;
   if (!player()) return;
   fetchInviteLink().then((u) => { invite = u; }, () => { invite = null; });
 }
@@ -117,48 +115,11 @@ onPlayerChange(() => { refreshPlayer(); for (const fn of playerListeners) fn(); 
 
 // --- the words-solved board -------------------------------------------------------------------
 export const BOARD_KEY = "words-solved";
-let board: Leaderboard | null | undefined;
-async function wordsBoard(): Promise<Leaderboard | null> {
-  if (board !== undefined) return board;
-  const list = await leaderboards.list();
-  board = list.find((b) => b.key === BOARD_KEY) ?? null;
-  return board;
-}
 export interface Posted { posted: boolean; rank: number | null }
 /** Signed in only: post a finished game's solved-word count through score-script.js; { posted, rank }. Never rejects. */
 export async function postScore(solved: number): Promise<Posted> {
-  const me = player();
-  if (!me) return { posted: false, rank: null };
-  let accepted: string[] = [];
   try {
-    const sessionId = await sessions.practice();
-    accepted = await new Promise<string[]>((resolve) => {
-      const socket = connectGame(sessionId);
-      let done = false;
-      const finish = (list: string[]): void => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        socket.close();
-        resolve(list);
-      };
-      const timer = setTimeout(() => finish([]), 15000);
-      socket.on("open", () => { socket.sendCommand({ type: "result", scores: { [BOARD_KEY]: solved } }); });
-      socket.on("game", (d) => {
-        const m = d as { type?: string; accepted?: string[] } | null;
-        if (m && m.type === "result-ack") finish(Array.isArray(m.accepted) ? m.accepted : []);
-      });
-      socket.on("error", () => finish([]));
-      socket.on("stopped", () => finish([]));
-      socket.on("abandoned", () => finish([]));
-    });
+    const r = await leaderboards.submitScore(BOARD_KEY, solved);
+    return { posted: r.accepted, rank: r.rank };
   } catch { return { posted: false, rank: null }; }
-  if (!accepted.includes(BOARD_KEY)) return { posted: false, rank: null };
-  try {
-    const b = await wordsBoard();
-    if (!b) return { posted: true, rank: null };
-    const r = await leaderboards.entries(b.id, { pageSize: 100 });
-    const mine = r.items.find((e) => e.userId === me.userId);
-    return { posted: true, rank: mine ? mine.rank : null };
-  } catch { return { posted: true, rank: null }; }
 }

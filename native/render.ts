@@ -17,9 +17,9 @@
 // bloom as the old one ran. The old canvas filled the
 // window with the DOM UI over it; so does the scene here.
 import {
-  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CapsuleGeometry, Color,
+  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, CanvasTexture, CapsuleGeometry, Color,
   ConeGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, HemisphereLight, IcosahedronGeometry, Mesh, MeshBasicMaterial,
-  MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Points, PointsMaterial, RepeatWrapping,
+  MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, ParticleEmitter, PointsMaterial, RepeatWrapping,
   RingGeometry, OrthographicCamera, RoomEnvironment, SphereGeometry, SRGBColorSpace, renderer, scene, type Texture,
 } from "starhermit:scene";
 import { OffscreenCanvas, type OffscreenCanvasRenderingContext2D } from "starhermit:canvas";
@@ -356,22 +356,28 @@ const artists: Artist[] = [];
 }
 
 // ---------------------------------------------------------------- dust motes
-const motePos = new Float32Array(PARTICLE_MAX * 3);
-const moteSeed = new Float32Array(PARTICLE_MAX * 2);
-for (let i = 0; i < PARTICLE_MAX; i++) {
-  motePos[i * 3] = -8 + rnd() * 16;
-  motePos[i * 3 + 1] = rnd() * 7.5;
-  motePos[i * 3 + 2] = -4.5 + rnd() * 9;
-  moteSeed[i * 2] = rnd() * Math.PI * 2;
-  moteSeed[i * 2 + 1] = 0.05 + rnd() * 0.12;
-}
-const moteGeo = new BufferGeometry();
-moteGeo.setAttribute("position", new BufferAttribute(motePos, 3));
-const motes = new Points(moteGeo, new PointsMaterial({
-  color: C.particle, size: 0.09, map: dotTexture(), transparent: true, opacity: 0.75, depthWrite: false, blending: AdditiveBlending,
-}));
+// Rising through the room (a native emitter: each mote's life and small drift its own; the old per-mote sine sway became that drift).
+const motes = new ParticleEmitter({
+  capacity: PARTICLE_MAX, seed: 98, space: "local", shape: "box", extent: [8, 3, 4.5], color: C.particle,
+  material: new PointsMaterial({ size: 0.09, map: dotTexture(), transparent: true, opacity: 0.75, depthWrite: false, blending: AdditiveBlending }),
+});
+motes.position.y = 3;
 motes.frustumCulled = false;
 scene.add(motes);
+const MOTE_LIFE = 19;
+let moteCount = 0;
+let motesMoving = true;
+function setMotes(count: number, moving: boolean): void {
+  moteCount = count;
+  motesMoving = moving;
+  motes.visible = count > 0;
+  motes.clear();
+  if (!count) { motes.rate = 0; return; }
+  motes.set(moving
+    ? { velocity: [0, 0.11, 0], velocitySpread: [0.06, 0.06, 0.02], life: [4, 34], rate: count / MOTE_LIFE }
+    : { velocity: [0, 0, 0], velocitySpread: 0, life: 3600, rate: 0 });
+  motes.burst(count);
+}
 
 // ---------------------------------------------------------------- graphics
 let look: Look | null = null;
@@ -391,16 +397,15 @@ export function applyLook(next: Look): void {
   }
   detailGroup.visible = next.detailed;
   ambLight.intensity = next.detailed ? 0.25 : 0.55;
-  motes.visible = next.motes > 0;
-  moteGeo.setDrawRange(0, Math.min(PARTICLE_MAX, next.motes));
-  const hi = next.ao === "high";
+  setMotes(Math.min(PARTICLE_MAX, next.motes), motesMoving);
+  const ao = next.ao, hi = !!ao && ao.resolution >= 1; // the engine's AO quality: resolution under 1 is "on", 1 is "high"
   // GTAOPass: radius 0.6, distance exponent 1.4, thickness 1.2, 16 / 8 samples, blend 0.7; the denoise per tier
-  renderer.ao = next.ao === "off" ? null : {
-    blendIntensity: 0.7, radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1, samples: hi ? 16 : 8, resolution: next.aoRes,
-    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: hi ? 6 : 4, rings: 2, samples: hi ? 16 : 8 },
+  renderer.ao = !ao ? null : {
+    blendIntensity: 0.7, radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1, samples: ao.samples, resolution: ao.resolution,
+    denoise: { lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: hi ? 6 : 4, rings: 2, samples: ao.denoiseSamples },
   };
   // high threshold: only lamp bulbs, the timer bar and the artist ring bloom
-  renderer.bloom = next.bloom ? { strength: 0.45, radius: 0.4, threshold: 0.92, resolution: next.bloomRes } : null;
+  renderer.bloom = next.bloom === null ? null : { strength: 0.45, radius: 0.4, threshold: 0.92, resolution: next.bloom };
   renderer.post = null;
   renderer.grade = next.grade ? GRADE : null;
   renderer.antialias = next.antialias;
@@ -461,16 +466,7 @@ export function update(dt: number, w: number, h: number, view: RelayView | null)
     artistRing.position.x = reducedMotion ? tx : artistRing.position.x + (tx - artistRing.position.x) * k;
     ringMat.opacity = 0.75 + (moving ? Math.sin(time * 2.5) * 0.15 : 0);
   }
-  if (motes.visible && moving) {
-    const n = Math.min(PARTICLE_MAX, look?.motes ?? 0);
-    for (let i = 0; i < n; i++) {
-      const ph = moteSeed[i * 2]!, sp = moteSeed[i * 2 + 1]!;
-      motePos[i * 3 + 1] = motePos[i * 3 + 1]! + sp * s;
-      motePos[i * 3] = motePos[i * 3]! + Math.sin(time * 0.4 + ph) * 0.06 * s;
-      if (motePos[i * 3 + 1]! > 7.5) motePos[i * 3 + 1] = 0.2;
-    }
-    (moteGeo.attributes.position as BufferAttribute).needsUpdate = true;
-  }
+  if (moving !== motesMoving) setMotes(moteCount, moving);
   if (detailGroup.visible) {
     bulbMaterial.emissiveIntensity = 3.2 + (moving ? Math.sin(time * 5.3) * 0.08 + Math.sin(time * 2.1) * 0.06 : 0);
   }
