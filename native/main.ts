@@ -1,3 +1,7 @@
+import { localizedStyle as __l10nStyle } from "./l10n/font.ts";
+import { withLanguageRender as __l10nRender } from "./l10n/menu.ts";
+// localization-runtime:attached
+import { openLocalizedOptions as __l10nOptions } from "./l10n/menu.ts";
 // Sketch Relay on the StarHermit engine: the entry module (starhermit.txt
 // engine.entry), played natively by the StarHermit client and in browsers by
 // the engine's web runtime. The rules (src/rules.js), the localized prompts
@@ -21,7 +25,30 @@
 // copied the platform's invite link, its server.js was a static file server),
 // so there is no hosted play to referee; the solved-word count posts to the
 // words-solved board through score-script.js, as before.
-import { afterRender, clipboard, frame, levelSettings, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, openMenu, preferences, setFixedRate } from "starhermit:engine";
+// Sketch Relay on the StarHermit engine: the entry module (starhermit.txt
+// engine.entry), played natively by the StarHermit client and in browsers by
+// the engine's web runtime. The rules (src/rules.js), the localized prompts
+// (src/prompts.js) and the save merge (src/save-merge.js) are the browser
+// build's, unchanged; this module is what src/main.js did around them — the
+// screen flow (title → the relay ⇄ pause → results → title), the guess field
+// and its feedback, the 60-second segment clock, the records, the save, the
+// leaderboard post and the lifecycle (a hidden window pauses the round, as
+// visibilitychange did). The studio is drawn by render.ts (starhermit:scene),
+// every screen here with starhermit:ui.
+//
+// Time is the runtime's fixed steps: the relay clock (rules.tick) advances
+// 1/60 s per fixed step while the round plays (the browser build ticked it by
+// requestAnimationFrame's wall time), so slow frames never change a round and
+// play scripts replay exactly.
+//
+// What the old page really was (checked before the port): a solo "prompt
+// relay" — twelve studio artists each show three prompts and the player types
+// the prompt shown. Nothing is drawn by players and there is no multiplayer:
+// the old client never opened a session or room (its "Invite a friend" only
+// copied the platform's invite link, its server.js was a static file server),
+// so there is no hosted play to referee; the solved-word count posts to the
+// words-solved board through score-script.js, as before.
+import { afterRender, clipboard, frame, levelSettings, onFixedUpdate, onPreferencesChange, onRender, onResume, onStart, onSuspend, onUpdate, preferences, setFixedRate } from "starhermit:engine";
 import { onAction, onKey, primaryPointer } from "starhermit:input";
 import * as ui from "starhermit:ui";
 import { onSessionEnded, requestSignIn } from "starhermit:platform";
@@ -213,13 +240,13 @@ const textW = (text: string, cls: string, kind?: "button"): number =>
 function para(text: string, width: number, cls: string, size?: number): void {
   const st: (string | ui.Style)[] = size ? [cls, { text: { size } }] : [cls];
   const w = ui.measureText(text, { style: st }).width / ui.preferences().scale;
-  if (w <= width) ui.style(...st).label(text);
-  else ui.style(...st).paragraph(text, Math.max(20, width));
+  if (w <= width) ui.style(...__l10nStyle(st)).label(text);
+  else ui.style(...__l10nStyle(st)).paragraph(text, Math.max(20, width));
 }
 interface Btn { id: string; text: string; cls?: string; act: () => void; size?: number; pad?: [number, number] }
 function button(b: Btn): void {
   const extra = b.size || b.pad ? [{ ...(b.size ? { text: { size: b.size } } : {}), ...(b.pad ? { padding: { top: b.pad[0], bottom: b.pad[0], start: b.pad[1], end: b.pad[1] } } : {}) }] : [];
-  if (ui.id(b.id).style(b.cls ?? "btn", ...extra).button(b.text)) later(b.act);
+  if (ui.id(b.id).style(__l10nStyle(b.cls ?? "btn"), ...__l10nStyle(extra)).button(b.text)) later(b.act);
 }
 /** A centred flex-wrap row of buttons (.menu-buttons). */
 function flow(id: string, list: Btn[], width: number, gap: number): void {
@@ -245,21 +272,21 @@ function drawTitle(L: Layout): void {
   const h = heightOf("title-col", 500);
   const build = (): void => {
     const r = ui.column("title-col", () => {
-      ui.style("title-name", L.land ? { text: { size: 26 } } : null).label("Sketch Relay");
-      ui.style("pill").column("tagline-pill", () => para(T("A party game of drawing and guessing."), Math.min(w, 560) - 24, "tagline", L.land ? 14 : undefined));
-      ui.style("panel", L.land ? { padding: { top: 10, bottom: 10, start: 16, end: 16 } } : null).column("how-to", () => {
-        ui.style("panel-title", L.land ? { text: { size: 12 } } : null).label(T("Solo relay practice"));
-        ui.style("how-text", L.land ? { text: { size: 13 } } : null).paragraph(T("This build is a prompt relay"), panelW - (L.land ? 32 : 44));
+      ui.style(__l10nStyle("title-name"), __l10nStyle(L.land ? { text: { size: 26 } } : null)).label("Sketch Relay");
+      ui.style(__l10nStyle("pill")).column("tagline-pill", () => para(T("A party game of drawing and guessing."), Math.min(w, 560) - 24, "tagline", L.land ? 14 : undefined));
+      ui.style(__l10nStyle("panel"), __l10nStyle(L.land ? { padding: { top: 10, bottom: 10, start: 16, end: 16 } } : null)).column("how-to", () => {
+        ui.style(__l10nStyle("panel-title"), __l10nStyle(L.land ? { text: { size: 12 } } : null)).label(T("Solo relay practice"));
+        ui.style(__l10nStyle("how-text"), __l10nStyle(L.land ? { text: { size: 13 } } : null)).paragraph(T("This build is a prompt relay"), panelW - (L.land ? 32 : 44));
       }, { width: panelW, spacing: L.land ? 4 : 8 });
       const pad: [number, number] | undefined = L.land ? [10, 22] : undefined;
       const size = L.land ? 16 : undefined;
       const list: Btn[] = [{ id: "btn-play", text: T("Play"), cls: "btn-primary", act: startGame, ...(pad ? { pad, size } : {}) }];
       if (roundInProgress()) list.push({ id: "btn-resume-round", text: T("Resume round"), act: resumeRound, ...(pad ? { pad, size } : {}) });
-      list.push({ id: "btn-settings", text: T("Settings"), act: () => openMenu(), ...(pad ? { pad, size } : {}) });
+      list.push({ id: "btn-settings", text: T("Settings"), act: () => __l10nOptions(), ...(pad ? { pad, size } : {}) });
       if (!platform.signedIn()) list.push({ id: "btn-signin", text: S("signIn"), act: signIn, ...(pad ? { pad, size } : {}) });
       if (platform.inviteLink()) list.push({ id: "btn-invite", text: S("invite"), act: invite, ...(pad ? { pad, size } : {}) });
       flow("menu-buttons", list, w, 12);
-      ui.style("pill").column("status-pill", () => para(statusText(), w - 24, "status"));
+      ui.style(__l10nStyle("pill")).column("status-pill", () => para(statusText(), w - 24, "status"));
     }, { width: w, spacing: gap, align: "center" });
     lastSize.set("title-col", r);
   };
@@ -278,9 +305,9 @@ function drawHudTop(L: Layout, w: number): void {
   const pill = L.narrow ? [{ padding: { top: 6, bottom: 6, start: 8, end: 8 } }] : [];
   const item = L.narrow ? [{ text: { size: 15 } }] : [];
   ui.row("hud-top", () => {
-    ui.style("pill", ...pill).row("hud-round", () => ui.style("hud-item", ...item).label(T("Artist: {name}", { name: rules.artistName })));
+    ui.style(__l10nStyle("pill"), ...__l10nStyle(pill)).row("hud-round", () => ui.style(__l10nStyle("hud-item"), ...__l10nStyle(item)).label(T("Artist: {name}", { name: rules.artistName })));
     ui.spacer();
-    ui.style("pill", ...pill).row("hud-timer", () => ui.style("hud-item", ...item).label(T("Time left: {n}s", { n: rules.secondsLeft })));
+    ui.style(__l10nStyle("pill"), ...__l10nStyle(pill)).row("hud-timer", () => ui.style(__l10nStyle("hud-item"), ...__l10nStyle(item)).label(T("Time left: {n}s", { n: rules.secondsLeft })));
     ui.spacer();
     button({ id: "btn-pause", text: T("Pause"), cls: "btn-small", act: () => pause() });
   }, { width: w, align: "center", spacing: L.narrow ? 8 : 16 });
@@ -289,34 +316,34 @@ function promptPanel(L: Layout, w: number): void {
   const word = rules.currentWord;
   if (!word) return;
   const padX = L.land ? 14 : 22;
-  ui.style("panel", L.land ? { padding: { top: 10, bottom: 10, start: 14, end: 14 } } : null).column("prompt-panel", () => {
-    ui.style("panel-title", L.land ? { text: { size: 13 } } : null).label(T("Prompt"));
+  ui.style(__l10nStyle("panel"), __l10nStyle(L.land ? { padding: { top: 10, bottom: 10, start: 14, end: 14 } } : null)).column("prompt-panel", () => {
+    ui.style(__l10nStyle("panel-title"), __l10nStyle(L.land ? { text: { size: 13 } } : null)).label(T("Prompt"));
     const text = T(word);
-    ui.style("panel-text", { text: { size: fitSize(text, "panel-text", L.land ? 24 : 34, w - padX * 2) } }).id("prompt-word").label(text);
+    ui.style(__l10nStyle("panel-text"), __l10nStyle({ text: { size: fitSize(text, "panel-text", L.land ? 24 : 34, w - padX * 2) } })).id("prompt-word").label(text);
   }, { width: w, align: "center", spacing: 8 });
 }
 function guessPanel(L: Layout, w: number): void {
   if (rules.over || !rules.currentWord) return;
   const padX = L.land ? 14 : 22, inner = w - padX * 2;
-  ui.style("panel", L.land ? { padding: { top: 10, bottom: 10, start: 14, end: 14 } } : null).column("guess-panel", () => {
+  ui.style(__l10nStyle("panel"), __l10nStyle(L.land ? { padding: { top: 10, bottom: 10, start: 14, end: 14 } } : null)).column("guess-panel", () => {
     para(T("Your guess — type the prompt shown"), inner, "panel-label", L.land ? 13 : undefined);
     const submitW = textW(T("Submit"), L.land ? "btn-small" : "btn-primary", "button");
     const stacked = L.land || inner < 380 + 12 + submitW;
     const fieldW = stacked ? Math.min(inner, Math.max(200, inner)) : Math.min(380, inner - 12 - submitW);
     const field = (): void => {
-      guessText = ui.id(GUESS_ID).style("field", L.land ? { text: { size: 16 }, padding: { top: 8, bottom: 8, start: 10, end: 10 } } : null)
+      guessText = ui.id(GUESS_ID).style(__l10nStyle("field"), __l10nStyle(L.land ? { text: { size: 16 }, padding: { top: 8, bottom: 8, start: 10, end: 10 } } : null))
         .textField(T("Your guess"), guessText, { width: fieldW, maxChars: 40, placeholder: T("Type a word and press Enter"), arrows: false });
       if (ui.submitted(T("Your guess"))) later(submitGuess);
     };
     const submit = (): void => button({ id: "btn-guess-submit", text: T("Submit"), cls: "btn-primary", act: () => { audio.play("ui-click"); submitGuess(); focusNext = primaryPointer() === "coarse" ? null : GUESS_ID; }, ...(L.land ? { size: 16, pad: [10, 18] as [number, number] } : {}) });
     if (stacked) { field(); submit(); }
     else ui.row("guess-row", () => { field(); submit(); }, { spacing: 12, align: "center" });
-    ui.style("feedback").column("feedback-box", () => { if (feedback) para(T(feedback.key, feedback.vars), inner, "feedback"); else ui.label(" "); });
+    ui.style(__l10nStyle("feedback")).column("feedback-box", () => { if (feedback) para(T(feedback.key, feedback.vars), inner, "feedback"); else ui.label(" "); });
   }, { width: w, align: "center", spacing: L.land ? 6 : 8 });
 }
 function statusPill(w: number): void {
   ui.row("hud-bottom", () => {
-    ui.style("pill").column("hud-status", () => para(statusText(), w - 24, "status"));
+    ui.style(__l10nStyle("pill")).column("hud-status", () => para(statusText(), w - 24, "status"));
     ui.spacer();
   }, { width: w });
 }
@@ -344,14 +371,14 @@ function drawGame(L: Layout): void {
 }
 
 function drawPause(): void {
-  const open = ui.style("dlg-pause").dialog(T("Paused"), "", true, () => {
+  const open = ui.style(__l10nStyle("dlg-pause")).dialog(T("Paused"), "", true, () => {
     ui.column("pause-col", () => {
-      ui.style("overlay-title").label(T("Paused"));
+      ui.style(__l10nStyle("overlay-title")).label(T("Paused"));
       const w = Math.max(200, textW(T("Quit to title"), "btn", "button"), textW(T("Resume"), "btn-primary", "button"), textW(T("Settings"), "btn", "button"));
       const wide = { width: w, text: { align: "center" as const } };
-      if (ui.id("btn-resume").style("btn-primary", wide).button(T("Resume"))) later(resume);
-      if (ui.id("btn-pause-settings").style("btn", wide).button(T("Settings"))) later(() => openMenu());
-      if (ui.id("btn-quit-to-title").style("btn", wide).button(T("Quit to title"))) later(quitToTitle);
+      if (ui.id("btn-resume").style(__l10nStyle("btn-primary"), __l10nStyle(wide)).button(T("Resume"))) later(resume);
+      if (ui.id("btn-pause-settings").style(__l10nStyle("btn"), __l10nStyle(wide)).button(T("Settings"))) later(() => __l10nOptions());
+      if (ui.id("btn-quit-to-title").style(__l10nStyle("btn"), __l10nStyle(wide)).button(T("Quit to title"))) later(quitToTitle);
     }, { spacing: 18, align: "center" });
   });
   // Escape closes the dialog: resume (not on the frame that opened it)
@@ -363,15 +390,15 @@ function drawResults(L: Layout): void {
   const parts = [T("Words solved: {n} of {total}", { n: solvedCount(), total }), T("Guesses: {n}", { n: rules.guessCount })];
   if (results.games > 0) parts.push(T("Best round: {best}/{total}", { best: results.bestSolved, total }));
   const w = Math.min(560, L.lw * 0.88);
-  ui.style("dlg-results").dialog(resultsHeadline(), "", true, () => {
+  ui.style(__l10nStyle("dlg-results")).dialog(resultsHeadline(), "", true, () => {
     ui.column("results-col", () => {
-      ui.style("overlay-title", L.narrow ? { text: { size: 26 } } : null).id("results-headline").paragraph(resultsHeadline(), w);
-      ui.style("panel").column("results-body", () => para(parts.join(" · "), w - 44, "body-text"), { width: w, align: "center" });
+      ui.style(__l10nStyle("overlay-title"), __l10nStyle(L.narrow ? { text: { size: 26 } } : null)).id("results-headline").paragraph(resultsHeadline(), w);
+      ui.style(__l10nStyle("panel")).column("results-body", () => para(parts.join(" · "), w - 44, "body-text"), { width: w, align: "center" });
       if (lbState) {
         const text = lbState === "posting" ? S("lbPosting") : !lbState.posted ? S("lbNotPosted") : lbState.rank ? S("lbRank", { rank: lbState.rank }) : S("lbPosted");
-        ui.style("panel").column("results-lb", () => para(text, w - 44, "body-text"), { width: w, align: "center" });
+        ui.style(__l10nStyle("panel")).column("results-lb", () => para(text, w - 44, "body-text"), { width: w, align: "center" });
       }
-      if (ui.id("btn-back-to-title").style("btn-primary").button(T("Back to title"))) later(() => { audio.play("ui-click"); showTitle(); });
+      if (ui.id("btn-back-to-title").style(__l10nStyle("btn-primary")).button(T("Back to title"))) later(() => { audio.play("ui-click"); showTitle(); });
     }, { spacing: 18, align: "center" });
   });
 }
@@ -447,10 +474,14 @@ onUpdate((dt) => {
   applyLook();
   watchGameOver();
 });
-onRender(() => {
+onRender(__l10nRender(() => {
   drawScreens();
   watchGameOver();
   const f = frame();
   render.update(frameDt, f.width, f.height, { seat: rules.over ? -1 : rules.seat, secondsLeft: rules.secondsLeft });
   if (spoken) { try { ui.announce(spoken.slice(0, 500)); } catch { /* busy */ } spoken = ""; }
-});
+}));
+
+// localization-runtime:menu
+import { installLanguageMenu as __installLanguageMenu } from "./l10n/menu.ts";
+__installLanguageMenu(false);
