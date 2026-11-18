@@ -17,11 +17,9 @@
 // bloom as the old one ran. The old canvas filled the
 // window with the DOM UI over it; so does the scene here.
 import {
-  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, CanvasTexture, CapsuleGeometry, Color,
-  ConeGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, HemisphereLight, IcosahedronGeometry, Mesh, MeshBasicMaterial,
-  MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, ParticleEmitter, PointsMaterial, RepeatWrapping,
-  RingGeometry, OrthographicCamera, RoomEnvironment, SphereGeometry, SRGBColorSpace, renderer, scene, type Texture,
+  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, CanvasTexture, CapsuleGeometry, Color, ConeGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, HemisphereLight, IcosahedronGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, PointsMaterial, RepeatWrapping, RingGeometry, OrthographicCamera, RoomEnvironment, SphereGeometry, SRGBColorSpace, renderer, scene, type Texture,
 } from "starhermit:scene";
+import { GPUParticleEmitter } from "starhermit:particles";
 import { OffscreenCanvas, type OffscreenCanvasRenderingContext2D } from "starhermit:canvas";
 import { ROSTER_SIZE, ROUND_SECONDS } from "./game.ts";
 import { PARTICLE_MAX, type Look } from "./quality.ts";
@@ -357,7 +355,7 @@ const artists: Artist[] = [];
 
 // ---------------------------------------------------------------- dust motes
 // Rising through the room (a native emitter: each mote's life and small drift its own; the old per-mote sine sway became that drift).
-const motes = new ParticleEmitter({
+const motes = new GPUParticleEmitter({
   capacity: PARTICLE_MAX, seed: 98, space: "local", shape: "box", extent: [8, 3, 4.5], color: C.particle,
   material: new PointsMaterial({ size: 0.09, map: dotTexture(), transparent: true, opacity: 0.75, depthWrite: false, blending: AdditiveBlending }),
 });
@@ -372,7 +370,7 @@ function setMotes(count: number, moving: boolean): void {
   motesMoving = moving;
   motes.visible = count > 0;
   motes.clear();
-  if (!count) { motes.rate = 0; return; }
+  if (!count) { motes.set({ rate: 0 }); return; }
   motes.set(moving
     ? { velocity: [0, 0.11, 0], velocitySpread: [0.06, 0.06, 0.02], life: [4, 34], rate: count / MOTE_LIFE }
     : { velocity: [0, 0, 0], velocitySpread: 0, life: 3600, rate: 0 });
