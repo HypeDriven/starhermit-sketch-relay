@@ -407,6 +407,7 @@ export function applyLook(next: Look): void {
   renderer.post = null;
   renderer.grade = next.grade ? GRADE : null;
   renderer.antialias = next.antialias;
+  renderer.motionBlur = next.bloom !== null ? { intensity: 0.25, samples: 8, maxPixels: 16, targetFps: 60, camera: false } : null;
 }
 
 // ---------------------------------------------------------------- per frame
