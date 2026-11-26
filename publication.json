@@ -12,7 +12,7 @@
     "metadataSource": "starhermit.txt",
     "createdAt": "2026-09-01T07:01:07.374215+00:00",
     "coverArtSource": "manifest",
-    "coverArtUpdatedAt": "2026-11-23T17:02:37.594195+00:00",
+    "coverArtUpdatedAt": "2026-11-26T15:32:27.876196+00:00",
     "submittedByUserId": "2712e04e-461b-4d23-81ae-e40b429128a8",
     "submittedByUsername": "starhermit",
     "hosting": {
@@ -22,9 +22,9 @@
       "pinnedCommitSha": null,
       "deployedCommitSha": null,
       "deployError": null,
-      "deployedAt": "2026-11-23T17:02:37.571909+00:00",
+      "deployedAt": "2026-11-26T15:32:27.864146+00:00",
       "externalLaunchUrl": null,
-      "engineVersion": "1.47.0",
+      "engineVersion": "1.50.0",
       "deployWarning": null
     },
     "description": "Draw secret prompts and guess other players' sketches, earning points for quick and accurate answers.",
@@ -36,19 +36,19 @@
     "links": [],
     "isDisabled": false
   },
-  "publishedAt": "2026-11-23T17:02:37.720Z",
-  "sourceCommit": "68973a2a66c3aa01f69fff614a7b289d5acbf3d8",
-  "bytesReceived": 1232255,
-  "archiveSha256": "3dc59b78c4fd41cb46db80a66d3a44fe7c5462ada2dd729408913a6968fc7d6d",
+  "publishedAt": "2026-11-26T15:32:26.955Z",
+  "sourceCommit": "b30a19f162db4a7e462416041730ae8febed898b",
+  "bytesReceived": 1232246,
+  "archiveSha256": "099c9e01f51cd79afd51a305142b59892235360b280e132ca95db050931a3942",
   "indexSha256": "0b72699668b3c416c6d38de0a90f1abaf93834faea387bf06df263570f98b389",
   "result": {
     "clientPublished": true,
     "serverImageLoaded": false,
     "imageDigest": null,
-    "bytesReceived": 1232255,
+    "bytesReceived": 1232246,
     "mode": "replace",
     "filesRemoved": 0,
-    "engineVersion": "1.47.0",
+    "engineVersion": "1.50.0",
     "deployWarning": null
   },
   "liveVerification": {
