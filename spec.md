@@ -1,7 +1,7 @@
 # Sketch Relay — specification (StarHermit engine)
 
 Sketch Relay is a StarHermit engine script game (TypeScript on the host API), pinned to engine
-**1.50.0** with `engine.minor=50`. One package plays natively in the StarHermit client and in
+**1.51.0** with `engine.minor=51`. One package plays natively in the StarHermit client and in
 browsers through the engine's web runtime (`index.html` is the loader `npm run package` writes).
 
 ## The game
@@ -150,9 +150,9 @@ The string tables include complete regional variants for `fr-BE`, `de-BE`, `en-S
 
 Cosmetic particle emitters use native GPU particles with automatic CPU fallback on devices or graphics tiers without GPU particle support.
 
-## Engine 1.50.0
+## Engine 1.51.0
 
-Browser play uses the WebGPU-only StarHermit 1.50.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
+Browser play uses the WebGPU-only StarHermit 1.51.0 web runtime. Automatic ray-traced shadows are enabled on supported Vulkan devices, with mapped-shadow fallbacks elsewhere. Packaging creates block-compressed runtime textures and compressed glTF copies, retaining original image fallbacks.
 
 Browser rendering uses the engine's asynchronous pipeline creation so newly encountered materials do not stall the page. Native play retains the engine's synchronous pipeline behavior.
 
